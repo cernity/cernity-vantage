@@ -93,6 +93,7 @@
     <button id="tab-search" onclick="show('search')">Search</button>
     <button id="tab-detectors" onclick="show('detectors')">Detectors</button>
     <button id="tab-cases">Cases</button>
+    <button id="tab-files" onclick="show('files')">Files</button>
     <button id="tab-compare" onclick="show('compare')">Compare</button>
   </div>
   <span class="spacer"></span>
@@ -111,7 +112,7 @@
 <!-- OVERVIEW (012 V1) — queue-centric graphite console -->
 <div id="view-overview" style="display:none">
   <div class="ovhead">
-    <span class="pill">env <b>default</b></span>
+    <span class="pill">env <b>homelab</b></span>
     <span class="pill">scope <b>tenant: all</b></span>
     <span style="margin-left:auto"></span>
     <div class="seg" id="ov-range"><button data-r="15m" onclick="ovSetRange('15m')">15m</button><button data-r="1h" class="on" onclick="ovSetRange('1h')">1h</button><button data-r="6h" onclick="ovSetRange('6h')">6h</button><button data-r="24h" onclick="ovSetRange('24h')">24h</button></div>
@@ -181,7 +182,10 @@
     <span class="lblc">from</span><input type="datetime-local" id="s-from" onchange="loadSuricata()">
     <span class="lblc">to</span><input type="datetime-local" id="s-to" onchange="loadSuricata()">
     <span class="lblc">tz</span><select id="s-tz" onchange="loadSuricata()"><option value="local">local</option><option value="utc">UTC</option></select>
-    <input id="s-q" placeholder="contains… (ip, signature, sni, domain)" style="width:210px" onkeydown="if(event.key==='Enter')loadSuricata()">
+    <!-- s-field: set only by a reference-aware pivot (U6 transfer/PCAP) for an EXACT term match on an
+         allowlisted field; any manual text query clears it so it can't silently narrow a plain search. -->
+    <input type="hidden" id="s-field">
+    <input id="s-q" placeholder="contains… (ip, signature, sni, domain)" style="width:210px" oninput="$('s-field').value=''" onkeydown="if(event.key==='Enter')loadSuricata()">
     <button class="btn" onclick="loadSuricata()">Refresh</button>
     <span class="note" id="s-total"></span>
   </div>
@@ -206,6 +210,23 @@
   <div class="banner">Detector operational rollup — your reviews roll up here. <b>threat mix%</b> = (confirmed+suspicious)/reviewed, a triage-outcome mix, <b>not</b> detector accuracy. <b>support%</b> = supported/(supported+unsupported) among assessed claims.</div>
   <div class="filters"><button class="btn" onclick="loadDetectors()">Refresh</button><span class="note" id="d-total"></span></div>
   <div class="detail" id="d-table"><div class="empty">Loading…</div></div>
+</div>
+
+<!-- FILES (Inc3 U6): read-only file-observation / YARA-hit view over the evidence API. Entity+window
+     scoped (U5 contract); tenant is server-derived upstream, token never reaches the browser. -->
+<div id="view-files" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div class="banner">Read-only file observations from the evidence plane. YARA verdict shows only for a <b>bytes-available</b> (scanned) file (KTD2); a metadata-only file is surfaced as "not scanned", with no verdict. Pivot to the transfer flow's raw EVE and PCAP.</div>
+  <div class="filters">
+    <span class="lblc">entity</span><input id="files-entity" placeholder="ip / hostname / hash" style="width:230px" onkeydown="if(event.key==='Enter')loadFiles()">
+    <span class="lblc">from</span><input type="datetime-local" id="files-from" onchange="loadFiles()">
+    <span class="lblc">to</span><input type="datetime-local" id="files-to" onchange="loadFiles()">
+    <span class="lblc">tz</span><select id="files-tz" onchange="loadFiles()"><option value="local">local</option><option value="utc">UTC</option></select>
+    <button class="btn" id="files-refresh">Refresh</button>
+  </div>
+  <div class="main">
+    <div class="rail" id="files-list"><div class="empty">Enter an entity and a from/to window.</div></div>
+    <div class="detail" id="files-detail"><div class="empty">Select a file observation for its context and linked evidence.</div></div>
+  </div>
 </div>
 
 <!-- COMPARE (A-U6): analyst-initiated split pane — finding fixed on the left, candidate EVE on the right -->
@@ -336,11 +357,12 @@ function evidenceStrip(s,d){
    +chip((d.index?'present in '+d.index:'receiver unknown'), 'retrieved from this SIEM ('+(d.index||'?')+' / '+(d.id||'?')+') — NOT proof of delivery to any other sink')
    +chip('evidence: '+scope, scope.indexOf('partial')===0?'native risk list capped at 16 — more may exist':'a representative sample of the evidence')
    +'</div>';}
-function show(t){for(const v of ['overview','findings','suricata','search','detectors','compare','cases']){$('view-'+v).style.display=v===t?'flex':'none';$('tab-'+v).classList.toggle('on',v===t);}
+function show(t){for(const v of ['overview','findings','suricata','search','detectors','compare','cases','files']){$('view-'+v).style.display=v===t?'flex':'none';$('tab-'+v).classList.toggle('on',v===t);}
   if(t==='overview'&&!window._ovload){window._ovload=1;loadOverview();}
   if(t==='findings'&&!window._fload){window._fload=1;loadFindings();}
   if(t==='suricata'&&!window._sload){window._sload=1;loadSuricata();}
   if(t==='cases')loadCases();
+  if(t==='files')loadFiles();
   if(t==='detectors')loadDetectors();}
 function status(m){$('status').textContent=m;}
 
@@ -591,10 +613,13 @@ function renderDet(){const key=_detSort.key,dir=_detSort.dir;
 
 // ---- suricata ----
 async function loadSuricata(){status('querying SIEM…');$('s-list').innerHTML='<div class="empty">Querying suricata-eve-*…</div>';
+  const _g=(window._sgen=(window._sgen||0)+1);   // last-write-wins guard: a superseded pivot's late response must not clobber a newer one
   const raw={mode:$('s-mode').value,event_type:$('s-type').value,severity_max:$('s-sev').value,
-    since:$('s-since').value,frm:toQ($('s-from').value,'s-tz'),to:toQ($('s-to').value,'s-tz'),q:$('s-q').value,size:150};
+    since:$('s-since').value,frm:toQ($('s-from').value,'s-tz'),to:toQ($('s-to').value,'s-tz'),
+    field:$('s-field').value,q:$('s-q').value,size:150};
   const p=new URLSearchParams(Object.entries(raw).filter(([k,v])=>v!=='' && v!=null));
   try{const r=await fetch('/api/suricata?'+p);const d=await r.json().catch(()=>null);
+    if(_g!==window._sgen)return;                 // a newer pivot/query started while this was in flight — drop this stale result
     if(!r.ok||!d||d.error||d.detail){const m=(d&&(d.error||(d.detail&&('bad request: '+JSON.stringify(d.detail)))))||('HTTP '+r.status);$('s-list').innerHTML='<div class="err">Suricata query failed — '+esc(m)+'</div>';status('error');return;}
     if($('s-type').options.length<=1&&d.event_types)for(const t of d.event_types){const o=document.createElement('option');o.value=o.textContent=t;$('s-type').appendChild(o);}
     $('s-total').textContent=d.count+' events'+(d.note?' — '+esc(d.note):'');
@@ -627,4 +652,5 @@ async function runSearch(){const q=$('q-q').value.trim();if(!q)return;status('se
 <script src="/static/charts.js?v=012c3"></script>
 <!-- 012 V1: Overview view module (queue-centric). Loads last so req()/esc()/$()/show()/VantageCharts exist. -->
 <script src="/static/overview.js?v=inc2u9"></script>
+<script src="/static/files.js?v=inc3u6"></script>
 </body></html>

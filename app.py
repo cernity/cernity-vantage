@@ -33,7 +33,7 @@ from fastapi import FastAPI, Body, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
-ES_URL = os.environ.get("ES_URL", "https://elasticsearch:9200").rstrip("/")
+ES_URL = os.environ.get("ES_URL", "https://192.168.222.141:9200").rstrip("/")
 ES_USER = os.environ.get("ES_USER", "elastic")
 ES_PASS = os.environ.get("ES_PASS", "")
 ES_INDEX = os.environ.get("ES_INDEX", "ndr-findings-*")
@@ -526,12 +526,21 @@ def detectors():
 
 
 # ---- Suricata raw EVE (bus tail — full fidelity) -----------------------------
+# Exact-field pivot targets for the U6 file view's reference-aware transfer/PCAP pivots. A `field` pivot
+# is a TERM match on the exact aggregatable field (never a tokenized full-text guess), so a Community-ID
+# / conn / pcap reference resolves to the RIGHT EVE record — allowlisted so an arbitrary field name can
+# never be injected into the query.
+_PIVOT_FIELDS = {"community_id", "pcap_filename", "flow_id", "conn_uid"}
+
+
 @app.get("/api/suricata")
 def suricata(mode: str = "alerts", event_type: str = "", severity_max: str = "", q: str = "",
-             size: int = 150, since: str = "", frm: str = "", to: str = ""):
+             size: int = 150, since: str = "", frm: str = "", to: str = "", field: str = ""):
     """Raw Suricata EVE from the SIEM (suricata-eve-*, shipped by filebeat). Default mode=alerts surfaces
     signature-triggered events (the real findings, most-severe first); mode=all drills down to every EVE
-    record. Suricata alert.severity is inverted: 1=High, 2=Medium, 3=Low; severity_max narrows to 1..N."""
+    record. Suricata alert.severity is inverted: 1=High, 2=Medium, 3=Low; severity_max narrows to 1..N.
+    `field` (allowlisted) resolves a reference EXACTLY on that field — the U6 transfer/PCAP pivot, which
+    must resolve a transfer flow that carries NO alert (so it is always used with mode=all)."""
     IDX = "suricata-eve-*"
     et_field = _agg_field("event_type", IDX)
     filt = []
@@ -551,7 +560,17 @@ def suricata(mode: str = "alerts", event_type: str = "", severity_max: str = "",
         filt.append({"range": {"@timestamp": rng}})
     elif since:
         filt.append({"range": {"@timestamp": {"gte": f"now-{since}"}}})
-    must = [{"simple_query_string": {"query": q}}] if q else [{"match_all": {}}]
+    if field and q and field in _PIVOT_FIELDS:
+        # reference-aware pivot: exact term match on the resolved (aggregatable) field, NOT a full-text
+        # search. A transfer flow / pcap capture resolves reliably and needs no preceding alert.
+        try:
+            resolved = _agg_field(field, IDX)
+        except MappingConflict:
+            resolved = f"{field}.keyword"
+        filt.append({"term": {resolved: q}})
+        must = [{"match_all": {}}]
+    else:
+        must = [{"simple_query_string": {"query": q}}] if q else [{"match_all": {}}]
     sort = ([{"alert.severity": {"order": "asc", "missing": "_last"}}, {"@timestamp": {"order": "desc"}}]
             if mode != "all" else [{"@timestamp": {"order": "desc"}}])
     try:
@@ -831,6 +850,143 @@ def evidence_pivot(fid: str, entity: str = "", frm: str = "", to: str = "", otyp
         return _normalize_evidence(_evidence_get("/observations?" + urlencode(params)))
     except Exception as e:                                   # noqa: BLE001
         return {"quality": "unavailable", "observations": [], "capabilities": [],
+                "reason": e.__class__.__name__}
+
+
+# ---- Inc3 U6: FILES — read-only file-observation / YARA-hit view over the evidence API ----------
+# Mirrors the evidence-pivot proxy (config-driven EVIDENCE_API_URL/_TOKEN). U5 is entity+window scoped
+# (GET /observations?type=file&entity=&from=&to=); tenant is server-derived upstream from the bearer
+# token (§21), NEVER a query param, and the token never leaves this one request. KTD2 is enforced HERE
+# at the trust boundary: a YARA verdict is surfaced ONLY for a bytes_available (scanned) file — a
+# metadata_only/hashes_only file NEVER carries a verdict, even if a buggy/hostile upstream attached one.
+# A degraded/unreachable upstream renders 'unavailable', never a fake fresh-empty.
+_FILE_STATES = {"metadata_only", "hashes_only", "bytes_available"}
+
+
+def _file_field(o, *names, default=None):
+    """Read a file attribute from the shipped observation.v1 shape: attributes live under
+    `fields.file` (contracts/file_observation.schema.json), NOT flat in `fields` or at top level."""
+    fields = o.get("fields") if isinstance(o.get("fields"), dict) else {}
+    f = fields.get("file") if isinstance(fields.get("file"), dict) else {}
+    for n in names:
+        if f.get(n) is not None:
+            return f[n]
+    return default
+
+
+def _scan_verdict(o):
+    """The rule-stamped scan result at `fields.file.scan_verdict` (engine, scanned_at, ruleset_sha256,
+    matched_rules[]). Present ONLY for a scanned bytes_available file; None otherwise."""
+    fields = o.get("fields") if isinstance(o.get("fields"), dict) else {}
+    f = fields.get("file") if isinstance(fields.get("file"), dict) else {}
+    sv = f.get("scan_verdict")
+    return sv if isinstance(sv, dict) else None
+
+
+_SCAN_DONE = {"completed", "complete", "done", "scanned", "ok", "success", "finished", "matched", "clean"}
+_SCAN_PENDING = {"pending", "queued", "in_progress", "in-progress", "scanning", "running", "requested"}
+_SCAN_FAILED = {"failed", "error", "timeout", "timed_out", "aborted", "cancelled", "canceled"}
+_SCAN_NONE = {"unscanned", "not_scanned", "not-scanned", "skipped", "none", "n/a", "na"}
+
+
+def _scan_outcome(o, state):
+    """Scan completion is EXPLICIT upstream evidence, NOT merely 'bytes are available'. The presence of
+    a `fields.file.scan_verdict` (engine/scanned_at) IS proof a scan ran — an EMPTY matched_rules then
+    means NO MATCH (a completed scan), never 'unscanned'. A bytes_available file with no scan_verdict is
+    'unknown' (never a silent clean scan); a non-bytes_available file is 'unscanned'."""
+    if state != "bytes_available":
+        return "unscanned"                              # no bytes captured -> nothing could be scanned
+    sv = _scan_verdict(o)
+    if sv is None:
+        return "unknown"                                # bytes present but no scan evidence yet
+    if sv.get("scanned_at") or sv.get("engine") or ("matched_rules" in sv):
+        return "completed"                              # a verdict ran to completion (empty hits = no match)
+    return "unknown"
+
+
+# A file transfer flow carries NO alert, so the Suricata pivot must resolve it by an EXACT match on an
+# allowlisted reference field (see _PIVOT_FIELDS / GET /api/suricata?field=), not a full-text search that
+# would drown it. Each alias maps to the field the browser hands back to that endpoint; order = priority.
+_TRANSFER_REFS = (("community_id", "community_id"), ("conn_uid", "conn_uid"),
+                  ("flow_id", "flow_id"), ("transfer_ref", "conn_uid"))
+_PCAP_REFS = (("pcap_filename", "pcap_filename"), ("pcap_ref", "pcap_filename"), ("pcap", "pcap_filename"))
+
+
+def _pivot_ref(o, aliases):
+    """Return (ref_value, pivot_field) for the first present alias, else (None, None) — preserving WHICH
+    reference type resolved so the browser pivots on the matching allowlisted field."""
+    for key, field in aliases:
+        v = _file_field(o, key)
+        if v is not None:
+            return v, field
+    return None, None
+
+
+def _normalize_files(payload):
+    """Shape U5's `{"observations":[observation.v1 type=file ...]}` into the files panel contract,
+    enforcing KTD2: the YARA verdict (rule name + version + hit) is kept ONLY for a bytes_available
+    file; for any other state it is dropped here so the browser can never render a verdict on an
+    unscanned file. An explicit degraded/unavailable marker, an error body, or a non-list
+    `observations` is a degraded upstream -> 'unavailable', never a fresh-empty."""
+    reason = _upstream_degraded(payload)
+    if reason or not isinstance(payload.get("observations"), list):
+        return {"quality": "unavailable", "files": [], "capabilities": [],
+                "reason": reason or "degraded_upstream"}
+    files = []
+    for o in payload["observations"]:
+        o = o if isinstance(o, dict) else {}
+        state = _file_field(o, "state", "file_state", default="metadata_only")
+        if state not in _FILE_STATES:
+            state = "metadata_only"
+        bytes_available = state == "bytes_available"
+        # KTD2: only a scanned file has a verdict. Strip any verdict the upstream attached to an
+        # unscanned file — the UI must show 'metadata only — not scanned', never an implied clean/dirty.
+        # KTD2: the verdict lives at fields.file.scan_verdict and only for a bytes_available file.
+        sv = _scan_verdict(o) if bytes_available else None
+        raw_hits = sv.get("matched_rules") if (sv and isinstance(sv.get("matched_rules"), list)) else []
+        rs_ver = (sv or {}).get("ruleset_version") or ""
+        yara = []
+        for h in raw_hits:
+            h = h if isinstance(h, dict) else {"rule": h}
+            yara.append({"rule": h.get("rule") or h.get("name") or "?",
+                         "version": h.get("version") or h.get("ruleset_version") or rs_ver or ""})
+        intel = _file_field(o, "intel_hash_hit", "intel_hit")
+        scan = _scan_outcome(o, state)
+        transfer_ref, transfer_field = _pivot_ref(o, _TRANSFER_REFS)
+        pcap_ref, pcap_field = _pivot_ref(o, _PCAP_REFS)
+        files.append({
+            "obs_id": o.get("obs_id") or o.get("id") or "?",
+            "ts": o.get("ts"),
+            "entities": o.get("entities") if isinstance(o.get("entities"), list) else [],
+            "state": state, "bytes_available": bytes_available,
+            "scan": scan, "scanned": scan == "completed",
+            "mime": _file_field(o, "mime", "mime_type"),
+            "size": _file_field(o, "size", "bytes_total"),
+            "bytes_scanned": _file_field(o, "bytes_scanned"),
+            "sha256": _file_field(o, "sha256"), "md5": _file_field(o, "md5"),
+            "yara": yara,
+            "intel_hash_hit": intel if isinstance(intel, dict) else None,
+            "transfer_ref": transfer_ref, "transfer_field": transfer_field,
+            "pcap_ref": pcap_ref, "pcap_field": pcap_field,
+            "source_ref": o.get("source_ref"),
+            "capabilities": o.get("capabilities") if isinstance(o.get("capabilities"), list) else []})
+    return {"quality": "fresh", "files": files,
+            "capabilities": payload.get("capabilities") or [],
+            "next": payload.get("next"), "next_after": payload.get("next_after")}
+
+
+@app.get("/api/files")
+def files_view(entity: str = "", frm: str = "", to: str = ""):
+    # U5 is entity+window scoped; without entity+window there is nothing to query -> measured
+    # 'unavailable', not a fake empty result. tenant is server-derived upstream from the bearer token.
+    if not entity or not frm or not to:
+        return {"quality": "unavailable", "files": [], "capabilities": [],
+                "reason": "entity_and_window_required"}
+    try:
+        params = {"entity": entity, "from": frm, "to": to, "type": "file"}
+        return _normalize_files(_evidence_get("/observations?" + urlencode(params)))
+    except Exception as e:                                     # noqa: BLE001
+        return {"quality": "unavailable", "files": [], "capabilities": [],
                 "reason": e.__class__.__name__}
 
 
