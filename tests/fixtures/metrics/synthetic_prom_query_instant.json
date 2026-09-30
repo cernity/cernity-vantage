@@ -1,0 +1,4 @@
+{"status":"success","data":{"resultType":"vector","result":[
+  {"metric":{"detector_id":"ndpi_risk","tenant":"default"},"value":[1790320000.0,"3.15"]},
+  {"metric":{"detector_id":"long_connection","tenant":"default"},"value":[1790320000.0,"0.02"]}
+]}}

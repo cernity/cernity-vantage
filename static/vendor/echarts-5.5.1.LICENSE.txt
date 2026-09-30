@@ -1,0 +1,1 @@
+Apache ECharts 5.5.1 — Apache-2.0. https://echarts.apache.org/ · vendored locally (plan 012 V2, no CDN).

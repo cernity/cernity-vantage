@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Secrets / config / local state (never commit)
+.env
+*.env
+!.env.example
+secrets/
+*.key
+*.pem
+
+# Local databases (triage SQLite lives in the /data volume, not source)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# macOS
+.DS_Store
+._*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+CLAUDE.md

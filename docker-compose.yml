@@ -1,0 +1,17 @@
+# Cernity Vantage — minimal deployment.
+# 1) cp .env.example .env  &&  edit .env with your SIEM / bus / API endpoints
+# 2) docker compose up -d   →   open http://localhost:8899
+services:
+  vantage:
+    build: .
+    image: cernity/cernity-vantage:latest
+    env_file: .env
+    ports:
+      - "8899:8899"     # analyst UI + API
+      - "9108:9108"     # Vantage's own Prometheus metrics (NDR_METRICS_PORT)
+    volumes:
+      - vantage-data:/data   # SOC_DB (triage/allowlist SQLite) persists here
+    restart: unless-stopped
+
+volumes:
+  vantage-data:

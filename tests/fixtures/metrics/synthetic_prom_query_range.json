@@ -1,0 +1,3 @@
+{"status":"success","data":{"resultType":"matrix","result":[
+  {"metric":{"event_type":"flow"},"values":[[1790319900.0,"12.1"],[1790319960.0,"13.4"],[1790320020.0,"11.9"]]}
+]}}

@@ -1,0 +1,337 @@
+{
+  "_meta": {
+    "contract_version": "011-u0.1",
+    "purpose": "Dashboard metric catalog (plan 011 U0). The MetricsBackend named-query registry (U1) and the overview API (U2) source query IDs and semantics from here. status=available|needs-U5|needs-R7|needs-wiring gates whether a card renders measured data or an honest 'unknown'/'not-applicable'.",
+    "verified_against": "a reference deployment",
+    "quality_enum": [
+      "fresh",
+      "stale",
+      "no_data",
+      "error",
+      "unsupported"
+    ],
+    "today": "UTC day over @timestamp; graph windows are separate; counter-derived daily counts are estimates",
+    "readiness_services": [
+      "ndr-finding-service",
+      "ndr-threat-intel",
+      "ndr-coverage-detector",
+      "behavioral-detectors-behavioral-detectors-1",
+      "ndr-capture-orchestrator",
+      "ndr-normalizer"
+    ]
+  },
+  "backends": {
+    "prometheus": {
+      "kind": "promql",
+      "role": "default",
+      "status": "available",
+      "notes": "scrape existing :9108/metrics + node_exporter + cAdvisor + redpanda"
+    },
+    "influxdb3": {
+      "kind": "influxql",
+      "role": "alternate",
+      "status": "needs-U6",
+      "notes": "InfluxDB 3 Core, InfluxQL (NOT Flux), fed by Telegraf"
+    },
+    "elasticsearch": {
+      "kind": "es_count",
+      "role": "collection-only",
+      "status": "available",
+      "endpoint": "elasticsearch:9200",
+      "version": "9.2.1",
+      "notes": "A2: collection stats stay ES-specific; not part of the store-agnostic seam"
+    },
+    "redpanda": {
+      "kind": "broker",
+      "role": "throughput+lag",
+      "status": "available",
+      "endpoint": "redpanda:19092",
+      "version": "v26.2.1"
+    },
+    "readyz_probe": {
+      "kind": "http_probe",
+      "role": "readiness",
+      "status": "available",
+      "port": 9108
+    }
+  },
+  "metrics": [
+    {
+      "id": "scrape_up",
+      "kind": "gauge",
+      "unit": "bool",
+      "backend": "prometheus",
+      "query": "up",
+      "dimensions": [
+        "job",
+        "instance"
+      ],
+      "freshness_s": 45,
+      "criticality": "required",
+      "status": "available",
+      "meaning": "collector reached target; NOT readiness/health"
+    },
+    {
+      "id": "service_ready",
+      "kind": "probe",
+      "unit": "enum",
+      "backend": "readyz_probe",
+      "query": "/readyz",
+      "dimensions": [
+        "service"
+      ],
+      "freshness_s": 45,
+      "escalate_after_failures": 2,
+      "criticality": "required",
+      "status": "available",
+      "meaning": "service self-reported readiness; coverage = _ready checks"
+    },
+    {
+      "id": "detector_activity",
+      "kind": "counter_rate",
+      "unit": "candidates_per_s",
+      "backend": "prometheus",
+      "query": "sum by (detector_id) (rate(ndr_findings_total[5m]))",
+      "dimensions": [
+        "detector_id",
+        "tenant"
+      ],
+      "reset_aware": true,
+      "rate_before_sum": true,
+      "freshness_s": 45,
+      "criticality": "optional",
+      "status": "available",
+      "available_on": [
+        "behavioral-detectors"
+      ],
+      "meaning": "candidate construction/emission ATTEMPTS at the call site; NOT finals/acceptance"
+    },
+    {
+      "id": "records_processed",
+      "kind": "counter_rate",
+      "unit": "records_per_s",
+      "backend": "prometheus",
+      "query": "sum by (event_type) (rate(ndr_records_total[5m]))",
+      "dimensions": [
+        "event_type"
+      ],
+      "freshness_s": 45,
+      "criticality": "optional",
+      "status": "available",
+      "meaning": "bus records this consumer processed; do NOT sum across fanout as total collected"
+    },
+    {
+      "id": "records_dropped",
+      "kind": "counter_rate",
+      "unit": "episodes_per_s",
+      "backend": "prometheus",
+      "query": "sum by (reason) (rate(ndr_records_dropped_total[5m]))",
+      "dimensions": [
+        "reason"
+      ],
+      "freshness_s": 45,
+      "criticality": "optional",
+      "status": "available",
+      "meaning": "flush=failed flush EPISODES, evaluate=eval errors; NOT lost input records; reasons not interchangeable"
+    },
+    {
+      "id": "evaluate_latency",
+      "kind": "histogram",
+      "unit": "seconds",
+      "backend": "prometheus",
+      "query": "histogram_quantile(0.95, sum by (le) (rate(ndr_evaluate_seconds_bucket[5m])))",
+      "dimensions": [
+        "service"
+      ],
+      "freshness_s": 45,
+      "criticality": "optional",
+      "status": "available"
+    },
+    {
+      "id": "final_topic_throughput",
+      "kind": "counter_rate",
+      "unit": "records_per_s",
+      "backend": "prometheus",
+      "query": "sum(rate(kminion_kafka_topic_high_water_mark_sum{topic_name=\"ndr.finding.final.v1\"}[5m]))",
+      "dimensions": [
+        "topic",
+        "partition"
+      ],
+      "agg": "sum_partitions",
+      "freshness_s": 15,
+      "criticality": "optional",
+      "status": "available",
+      "meaning": "broker-accepted finals; NOT a detector counter; NOT receiver ingestion"
+    },
+    {
+      "id": "consumer_lag",
+      "kind": "gauge",
+      "unit": "records",
+      "backend": "prometheus",
+      "query": "sum by (group_id) (kminion_kafka_consumer_group_topic_lag)",
+      "dimensions": [
+        "group",
+        "topic",
+        "partition"
+      ],
+      "agg": "max_and_sum",
+      "freshness_s": 15,
+      "criticality": "required",
+      "status": "available",
+      "meaning": "backlog per group; brief lag>0 != failure; needs sustained threshold; no group => no lag"
+    },
+    {
+      "id": "collection_findings",
+      "kind": "count",
+      "unit": "documents",
+      "backend": "elasticsearch",
+      "query": "count:ndr-findings-*@@timestamp",
+      "dimensions": [
+        "index",
+        "utc_day"
+      ],
+      "freshness_s": 60,
+      "criticality": "required",
+      "status": "available",
+      "meaning": "documents are REVISIONS not unique findings; observations = subset observed=true; empty index != missing index"
+    },
+    {
+      "id": "collection_eve",
+      "kind": "count",
+      "unit": "documents",
+      "backend": "elasticsearch",
+      "query": "count:suricata-eve-*@@timestamp",
+      "dimensions": [
+        "index",
+        "utc_day"
+      ],
+      "freshness_s": 60,
+      "criticality": "optional",
+      "status": "available",
+      "meaning": "ingested EVE docs; not packets"
+    },
+    {
+      "id": "collection_zeek",
+      "kind": "count",
+      "unit": "documents",
+      "backend": "elasticsearch",
+      "query": "count:zeek-*@@timestamp",
+      "dimensions": [
+        "index",
+        "utc_day"
+      ],
+      "freshness_s": 60,
+      "criticality": "optional",
+      "status": "available"
+    },
+    {
+      "id": "pcap_retained",
+      "kind": "inventory",
+      "unit": "objects_bytes",
+      "backend": "minio",
+      "query": "bucket_inventory:ndr-pcap",
+      "dimensions": [
+        "bucket"
+      ],
+      "freshness_s": 300,
+      "criticality": "optional",
+      "status": "needs-wiring",
+      "meaning": "real object inventory; NOT evidence_refs counts"
+    },
+    {
+      "id": "host_cpu",
+      "kind": "gauge",
+      "unit": "percent",
+      "backend": "prometheus",
+      "query": "100 - (avg by (host) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+      "dimensions": [
+        "host"
+      ],
+      "freshness_s": 45,
+      "criticality": "required",
+      "status": "available",
+      "meaning": "observe the host, not the container; a colocated exporter cannot self-monitor its own host outage"
+    },
+    {
+      "id": "host_mem",
+      "kind": "gauge",
+      "unit": "percent",
+      "backend": "prometheus",
+      "query": "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)",
+      "dimensions": [
+        "host"
+      ],
+      "freshness_s": 45,
+      "criticality": "required",
+      "status": "available"
+    },
+    {
+      "id": "host_fs",
+      "kind": "gauge",
+      "unit": "percent",
+      "backend": "prometheus",
+      "query": "100 * (1 - node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\"})",
+      "dimensions": [
+        "host",
+        "mountpoint"
+      ],
+      "freshness_s": 45,
+      "criticality": "required",
+      "status": "available",
+      "meaning": "select real filesystems; exclude overlay/loopback/container/root double-count"
+    },
+    {
+      "id": "sensor_loss",
+      "kind": "derived",
+      "unit": "percent",
+      "backend": "prometheus",
+      "query": "suricata_kernel_drops_ratio",
+      "dimensions": [
+        "sensor"
+      ],
+      "freshness_s": 60,
+      "criticality": "optional",
+      "status": "needs-wiring",
+      "meaning": "from suricata.stats.v1 kernel_drops; NOT node_exporter NIC totals; host-up != bidirectionality"
+    },
+    {
+      "id": "dlq_unresolved",
+      "kind": "gauge",
+      "unit": "obligations",
+      "backend": "prometheus",
+      "query": "sum by (sink) (ndr_dlq_unresolved)",
+      "dimensions": [
+        "sink"
+      ],
+      "freshness_s": 60,
+      "criticality": "optional",
+      "status": "available",
+      "meaning": "current unresolved obligations from a verified exporter; NOT file line count or cumulative dead_lettered"
+    },
+    {
+      "id": "finalization_rate",
+      "kind": "counter_rate",
+      "unit": "per_s",
+      "backend": "prometheus",
+      "query": "sum by (reason) (rate(ndr_finalization_total[5m]))",
+      "dimensions": [
+        "reason"
+      ],
+      "freshness_s": 45,
+      "criticality": "optional",
+      "status": "available",
+      "meaning": "finding-service finalization; not derivable from build_receipt (consumed-suppressed=eligible input, not delivered)"
+    },
+    {
+      "id": "enrichment_pending",
+      "kind": "gauge",
+      "unit": "count",
+      "backend": "prometheus",
+      "query": "sum(ndr_enrichment_pending)",
+      "dimensions": [],
+      "freshness_s": 45,
+      "criticality": "optional",
+      "status": "available"
+    }
+  ]
+}

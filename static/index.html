@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cernity Vantage</title>
+<style>
+  :root{--bg:#0e1116;--panel:#161b22;--panel2:#1c232d;--line:#2b333d;--ink:#d7dee6;--mut:#8b96a3;--acc:#3b82f6;--sel:#1e2b3d;--red:#e5534b;--amb:#d29922;--grn:#3fb950;}
+  *{box-sizing:border-box}
+  body{font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:var(--ink);margin:0;background:var(--bg);height:100vh;display:flex;flex-direction:column}
+  a{color:var(--acc)}
+  .top{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex:none}
+  .brand{font-weight:600;letter-spacing:.02em}
+  .nav{display:flex;gap:2px}
+  .nav button{background:none;border:1px solid transparent;color:var(--mut);padding:6px 14px;border-radius:6px 6px 0 0;cursor:pointer;font-size:13px}
+  .nav button.on{background:var(--bg);color:var(--ink);border-color:var(--line);border-bottom-color:var(--bg);font-weight:600}
+  .spacer{flex:1}
+  input,select,textarea{background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--ink);padding:5px 9px;font:inherit;font-size:12.5px}
+  input::placeholder{color:var(--mut)}
+  button.btn{border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--ink);padding:5px 11px;font-size:12px;cursor:pointer}
+  button.btn.primary{background:var(--acc);border-color:var(--acc);color:#fff}
+  button.btn.danger{border-color:#5a2b2b;color:#f0a8a3}
+  .filters{display:flex;gap:8px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel);flex:none;flex-wrap:wrap}
+  .filters .lblc{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  .main{flex:1;display:flex;min-height:0}
+  .rail{width:340px;border-right:1px solid var(--line);overflow:auto;background:var(--panel)}
+  .detail{flex:1;overflow:auto;padding:14px 16px}
+  .empty{color:var(--mut);padding:30px;text-align:center}
+  .qrow{padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+  .qrow:hover{background:var(--panel2)}
+  .qrow.sel{background:var(--sel);box-shadow:inset 3px 0 0 var(--acc)}
+  .qtop{display:flex;align-items:center;gap:7px}
+  .sev{min-width:22px;text-align:center;border-radius:4px;color:#0e1116;font-weight:700;font-size:11px;padding:1px 4px}
+  .sev-hi{background:var(--red);color:#fff}.sev-md{background:var(--amb)}.sev-lo{background:#3d4c5a;color:#cfe}
+  /* U6: ATT&CK coverage grid + quality table. Color marks coverage STATE, never a verdict; the
+     text label carries the meaning so it reads without relying on color. */
+  .covgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;margin-top:4px}
+  .covcell{border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-size:10.5px;line-height:1.25;overflow:hidden}
+  .covcell .covid{font-family:var(--mono);font-weight:600;display:block;color:#c9d6e6}
+  .covcell .covn{color:#8b96a3;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cov-observed{border-color:#1f5a4a;background:#0e2a22}          /* detector exists AND fired (tenant-scoped) */
+  .cov-exists{border-color:#3f5a2a;background:#16210e}            /* detector exists but not observed firing */
+  .cov-gap{border-color:#7a2e34;background:#2a1013}               /* GAP — no detector maps to this technique */
+  .covtable{width:100%;border-collapse:collapse;font-size:12px;margin-top:2px}
+  .covtable th{text-align:left;color:#4c5c74;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;padding:3px 8px 3px 0;border-bottom:1px solid #22344c}
+  .covtable td{padding:5px 8px 5px 0;border-bottom:1px solid #101c2e;vertical-align:top}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;color:#aeb9c4;word-break:break-all}
+  .chip{display:inline-block;border:1px solid var(--line);border-radius:11px;padding:1px 8px;font-size:11px;margin:2px 4px 0 0;background:var(--panel2)}
+  .chip.geo{border-color:#274b7a;color:#8ab4f8}.chip.vd{border-color:#5a4b1f;color:#e0c04a}.chip.intel{border-color:#245c36;color:#7ee2a0}.chip.mitre{border-color:#4a3670;color:#c4a8f0}
+  .chip.st{border-color:#4a3670}
+  h2.fh{font-size:16px;margin:0 0 3px}
+  .subline{color:var(--mut);font-size:12px;margin:0 0 12px}
+  .actions{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}
+  .evstrip{display:flex;flex-wrap:wrap;gap:3px;margin:0 0 12px}
+  details.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:0 0 11px}
+  details.panel>summary{cursor:pointer;padding:9px 13px;font-weight:600;list-style:none;display:flex;gap:8px;align-items:center}
+  details.panel>summary::-webkit-details-marker{display:none}
+  details.panel>summary::before{content:"▸";color:var(--mut)}
+  details.panel[open]>summary::before{content:"▾"}
+  details.panel .body{padding:0 13px 13px}
+  .tw{color:var(--mut);font-weight:400;font-size:12px;margin-left:auto}
+  .kv{display:grid;grid-template-columns:150px 1fr;gap:4px 12px;font-size:12.5px}
+  .kv div:nth-child(odd){color:var(--mut)}
+  pre.json{background:#0b0e13;border:1px solid var(--line);border-radius:6px;padding:11px;overflow:auto;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#c9d3de;margin:0;max-height:60vh;white-space:pre}
+  .note{color:var(--mut);font-size:12px}
+  dl.gloss{margin:2px 0 0}
+  dl.gloss dt{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#8ab4f8;margin-top:7px}
+  dl.gloss dd{margin:1px 0 0;color:var(--mut);font-size:12px}
+  .grow{display:flex;flex-direction:column;gap:6px}
+  .noteitem{border-left:2px solid var(--line);padding:2px 0 2px 8px;margin:5px 0}
+  .noteitem .ts{color:var(--mut);font-size:11px}
+  .evrow{border-bottom:1px solid var(--line)}
+  .evrow>summary{cursor:pointer;padding:8px 12px;list-style:none;display:flex;gap:8px;align-items:center}
+  .evrow>summary::-webkit-details-marker{display:none}
+  .evrow[open]{background:var(--panel2)}
+  .banner{background:#12251b;color:#8be0a4;font-size:11.5px;padding:4px 14px;border-bottom:1px solid #1f5133;flex:none}
+  table.dt{width:100%;border-collapse:collapse;font-size:12px}
+  table.dt th{text-align:left;color:var(--mut);font-weight:500;padding:6px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)}
+  table.dt td{padding:5px 10px;border-bottom:1px solid var(--line)}
+  table.dt tr:hover td{background:var(--panel2)}
+  .sigbar{display:inline-block;width:70px;height:8px;border:1px solid var(--line);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:5px}
+  .sigbar>span{display:block;height:100%}
+  .qts{margin-left:auto;color:#cdd6e4;font-family:monospace;font-size:12px;font-weight:600;white-space:nowrap}
+  .err{color:#f0a8a3;padding:14px}
+</style>
+<!-- 012 V1: graphite console tokens + queue-centric Overview (overrides the inline :root above) -->
+<link rel="stylesheet" href="/static/vantage.css?v=012c4">
+</head>
+<body>
+<div class="top">
+  <span class="brand">▪ Cernity Vantage</span>
+  <div class="nav">
+    <button id="tab-overview" class="on" onclick="show('overview')">Overview</button>
+    <button id="tab-findings" onclick="show('findings')">Cernity Findings</button>
+    <button id="tab-suricata" onclick="show('suricata')">Suricata (raw)</button>
+    <button id="tab-search" onclick="show('search')">Search</button>
+    <button id="tab-detectors" onclick="show('detectors')">Detectors</button>
+    <button id="tab-cases">Cases</button>
+    <button id="tab-compare" onclick="show('compare')">Compare</button>
+  </div>
+  <span class="spacer"></span>
+  <span class="note" id="status">—</span>
+</div>
+
+<div id="view-cases" style="display:none;flex-direction:column;padding:20px;overflow:auto;gap:12px">
+  <h2>Cases</h2>
+  <div class="actions"><label>Owner <input id="case-owner-filter" maxlength="256"></label>
+    <label>Status <select id="case-status-filter"><option value="">All</option><option>new</option><option>investigating</option><option>resolved</option><option>closed</option></select></label>
+    <button id="case-filter" class="btn">Apply filters</button>
+    <button id="case-prev" class="btn" disabled>Previous</button><button id="case-next" class="btn" disabled>Next</button>
+  </div>
+  <div id="case-list"></div><div id="case-detail">Select a case.</div>
+</div>
+<!-- OVERVIEW (012 V1) — queue-centric graphite console -->
+<div id="view-overview" style="display:none">
+  <div class="ovhead">
+    <span class="pill">env <b>default</b></span>
+    <span class="pill">scope <b>tenant: all</b></span>
+    <span style="margin-left:auto"></span>
+    <div class="seg" id="ov-range"><button data-r="15m" onclick="ovSetRange('15m')">15m</button><button data-r="1h" class="on" onclick="ovSetRange('1h')">1h</button><button data-r="6h" onclick="ovSetRange('6h')">6h</button><button data-r="24h" onclick="ovSetRange('24h')">24h</button></div>
+    <button class="ovbtn" onclick="loadOverview()">Refresh</button>
+    <a class="ovbtn" id="ov-grafana" href="#" target="_blank" rel="noopener" title="deep-dive dashboards (set GRAFANA_URL)">Metrics ↗</a>
+    <span class="note" id="ov-updated">—</span>
+  </div>
+  <div class="ovwrap">
+    <div class="ovrail">
+      <div class="r on">▨ All systems</div><div class="r">✦ Findings</div><div class="r">≋ Raw telemetry</div>
+      <div class="r">◈ Detectors</div><div class="r">◉ Pipeline</div><div class="r">↗ Metrics</div>
+    </div>
+    <div class="ovbody">
+      <div id="ov-status" class="ovstatus"><span class="ovdot s-unknown"></span> loading…</div>
+      <div class="hero">
+        <div class="queue">
+          <div class="qhead"><h2>Investigation queue</h2><span class="count" id="ov-qcount"></span>
+            <div class="qfilters" id="ov-qfilters"><button data-f="priority" class="on" onclick="ovSetFilter('priority')">Priority</button><button data-f="low_signal" onclick="ovSetFilter('low_signal')">Low-signal</button><button data-f="needs" onclick="ovSetFilter('needs')">Needs classification</button><button data-f="allowlisted" onclick="ovSetFilter('allowlisted')">Allowlisted</button><button data-f="all" onclick="ovSetFilter('all')">All</button></div>
+          </div>
+          <div id="ov-qlist"><div class="qempty">Loading…</div></div>
+        </div>
+        <div class="signal" id="ov-signal"></div>
+      </div>
+      <div class="ops-h">Security analytics · findings (revision-deduped)</div>
+      <div class="ops" id="ov-analytics"></div>
+      <div class="ops-h">Fleet health · sensors + clock skew</div>
+      <div class="ops" id="ov-fleet"></div>
+      <div class="ops-h">ATT&amp;CK coverage · detector grid (gaps highlighted)</div>
+      <div class="ops" id="ov-coverage"></div>
+      <div class="ops-h">Detection quality · per-detector precision/FP + allowlist rate</div>
+      <div class="ops" id="ov-quality"></div>
+      <div class="ops-h">Operations · supporting detail</div>
+      <div class="ops" id="ov-ops"></div>
+    </div>
+  </div>
+</div>
+
+<!-- FINDINGS -->
+<div id="view-findings" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div class="filters">
+    <span class="lblc">view</span><select id="f-preset" onchange="applyPreset()" title="preset views over the filters below — never a benign verdict"><option value="priority">Priority</option><option value="all">All retained</option><option value="observation">Observations</option><option value="policy">Hygiene</option><option value="unclassified">Needs-classification</option></select>
+    <span class="lblc">sev ≥</span><select id="f-sev" onchange="loadFindings()"><option>0</option><option>4</option><option selected>6</option><option>8</option></select>
+    <span class="lblc">category</span><select id="f-cat" onchange="loadFindings()"><option value="">any</option></select>
+    <span class="lblc">detector</span><select id="f-det" onchange="loadFindings()"><option value="">any</option></select>
+    <span class="lblc">source</span><select id="f-src" onchange="loadFindings()"><option value="">any</option><option value="ml">ML behavioral (SLIPS)</option><option value="slips">SLIPS (all)</option><option value="signature">signature</option><option value="intel">threat-intel</option><option value="ndpi">nDPI risk</option></select>
+    <span class="lblc">since</span><select id="f-since" onchange="loadFindings()"><option value="">all time</option><option value="1h">1h</option><option value="6h">6h</option><option value="24h">24h</option><option value="7d">7d</option><option value="30d">30d</option></select>
+    <span class="lblc">from</span><input type="datetime-local" id="f-from" onchange="loadFindings()">
+    <span class="lblc">to</span><input type="datetime-local" id="f-to" onchange="loadFindings()"><span class="lblc">tz</span><select id="f-tz" onchange="loadFindings()" title="how the timestamps above and the from/to pickers are interpreted; stored as UTC"><option value="local">local</option><option value="utc">UTC</option></select>
+    <input id="f-q" placeholder="query (ip, sni, org, mitre…)" style="width:230px" onkeydown="if(event.key==='Enter')loadFindings()">
+    <button class="btn" onclick="loadFindings()">Refresh</button>
+    <span class="note" id="f-total"></span>
+  </div>
+  <div class="main">
+    <div class="rail" id="f-queue"><div class="empty">Loading…</div></div>
+    <div class="detail" id="f-detail"><div class="empty">Select a finding.</div></div>
+  </div>
+</div>
+
+<!-- SURICATA -->
+<div id="view-suricata" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div class="banner">Raw Suricata EVE from the SIEM (suricata-eve-*). Default = signature-triggered <b>alerts</b> (real findings, most-severe first). Switch to "All events" to drill into every record; expand any row for the full JSON.</div>
+  <div class="filters">
+    <span class="lblc">show</span><select id="s-mode" onchange="loadSuricata()"><option value="alerts">Alerts (signature)</option><option value="all">All events</option></select>
+    <span class="lblc">severity</span><select id="s-sev" onchange="loadSuricata()"><option value="">all alerts</option><option value="1">High only</option><option value="2">High+Med</option></select>
+    <span class="lblc">event_type</span><select id="s-type" onchange="loadSuricata()"><option value="">any</option></select>
+    <span class="lblc">since</span><select id="s-since" onchange="loadSuricata()"><option value="">all time</option><option value="1h">1h</option><option value="6h">6h</option><option value="24h">24h</option><option value="7d">7d</option><option value="30d">30d</option></select>
+    <span class="lblc">from</span><input type="datetime-local" id="s-from" onchange="loadSuricata()">
+    <span class="lblc">to</span><input type="datetime-local" id="s-to" onchange="loadSuricata()">
+    <span class="lblc">tz</span><select id="s-tz" onchange="loadSuricata()"><option value="local">local</option><option value="utc">UTC</option></select>
+    <input id="s-q" placeholder="contains… (ip, signature, sni, domain)" style="width:210px" onkeydown="if(event.key==='Enter')loadSuricata()">
+    <button class="btn" onclick="loadSuricata()">Refresh</button>
+    <span class="note" id="s-total"></span>
+  </div>
+  <div class="detail" id="s-list"><div class="empty">Loading…</div></div>
+</div>
+
+<!-- SEARCH -->
+<div id="view-search" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div class="filters">
+    <input id="q-q" placeholder="search findings across all fields…" style="width:360px" onkeydown="if(event.key==='Enter')runSearch()">
+    <button class="btn primary" onclick="runSearch()">Search</button>
+    <span class="note" id="q-total"></span>
+  </div>
+  <div class="main">
+    <div class="rail" id="q-queue"><div class="empty">Enter a query.</div></div>
+    <div class="detail" id="q-detail"><div class="empty">Select a result.</div></div>
+  </div>
+</div>
+
+<!-- DETECTORS -->
+<div id="view-detectors" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div class="banner">Detector operational rollup — your reviews roll up here. <b>threat mix%</b> = (confirmed+suspicious)/reviewed, a triage-outcome mix, <b>not</b> detector accuracy. <b>support%</b> = supported/(supported+unsupported) among assessed claims.</div>
+  <div class="filters"><button class="btn" onclick="loadDetectors()">Refresh</button><span class="note" id="d-total"></span></div>
+  <div class="detail" id="d-table"><div class="empty">Loading…</div></div>
+</div>
+
+<!-- COMPARE (A-U6): analyst-initiated split pane — finding fixed on the left, candidate EVE on the right -->
+<div id="view-compare" style="display:none;flex-direction:column;flex:1;min-height:0">
+  <div class="banner" id="c-banner">Select a finding, then "Compare" — related raw EVE candidates alongside it. Candidate matches, not exact lineage.</div>
+  <div class="filters"><span class="lblc">candidate query</span><input id="c-q" style="width:300px" onkeydown="if(event.key==='Enter')runCompareEve()"><button class="btn" onclick="runCompareEve()">Search EVE</button><span class="note" id="c-total"></span></div>
+  <div class="main">
+    <div class="detail" id="c-left" style="border-right:1px solid var(--line)"><div class="empty">No finding selected — open a finding and click Compare.</div></div>
+    <div class="detail" id="c-right"><div class="empty">Candidate EVE appears here.</div></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+function sevClass(s){return s>=8?'sev-hi':s>=6?'sev-md':'sev-lo';}
+// A-U8: honest visual semantics — a neutral marker for observation, a DISTINCT "unresolved" marker
+// for unclassified (unknown != benign), text-labelled so it reads without relying on color. Low
+// severity is styled muted (sev-lo), never green/"safe".
+function _catChip(cat){
+  if(cat==='unclassified')return '<span class="chip" style="border-color:#5a4b1f;color:#e0c04a" title="not yet classified — unknown, NOT benign">unresolved</span>';
+  if(cat==='observation')return '<span class="chip" title="feature/heuristic observation — not a threat claim">obs</span>';
+  return '';
+}
+function _tz(sel){return ($(sel||'f-tz')||{}).value||'local';}
+function pad(n){return String(n).padStart(2,'0');}
+function fmtTs(s,sel){if(!s)return '—';const d=new Date(/[Zz]|[+-]\d\d:?\d\d$/.test(s)?s:s+'Z');if(isNaN(d))return s;const u=_tz(sel)==='utc';
+  return (u?d.getUTCFullYear():d.getFullYear())+'-'+pad((u?d.getUTCMonth():d.getMonth())+1)+'-'+pad(u?d.getUTCDate():d.getDate())+' '+pad(u?d.getUTCHours():d.getHours())+':'+pad(u?d.getUTCMinutes():d.getMinutes())+':'+pad(u?d.getUTCSeconds():d.getSeconds());}
+function toQ(v,sel){if(!v)return '';return _tz(sel)==='utc'?v.slice(0,19):new Date(v).toISOString().slice(0,19);}  // local entry -> UTC; UTC entry sent verbatim
+function esc(x){return (x==null?'':String(x)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}  // A-U1: escape quotes too — safe in attribute/JS-string sinks
+// Plain-English field guide. Raw JSON stays verbatim; this just explains what fields mean.
+const FIELDS={
+ finding_id:"Stable unique ID for this finding (detector + flow-derived).",
+ detector_id:"Which Cernity detector or source produced this — may be an analytic, a signature (ids_signature), or threat-intel. The source class, not a verdict.",
+ category:"Cernity's threat category (c2, malware, exfil…). A lead, not a verdict.",
+ severity:"Detector-assigned 0–10 severity. Not a probability of compromise.",
+ confidence:"The detector's own score for the pattern — not a calibrated likelihood.",
+ state:"Lifecycle state — NOT proof of SIEM delivery (delivery is tracked separately in the forwarder's durable ledger). FINAL (finalized for delivery), SUPPRESSED (kept for correlation, not sent to the analyst plane), CAPTURE_REQUESTED (awaiting packet capture).",
+ enrichment_state:"Enrichment status: NOT_REQUIRED / PENDING / REQUIRED / DONE / TIMEOUT (delivered now, evidence to follow).",
+ mitre:"Mapped MITRE ATT&CK technique IDs. A label/lead, not proof.",
+ entities:"The endpoints/attributes this finding is about (src/dst IPs, ports, counts) — stored as a JSON string.",
+ first_seen:"First observation time for this finding.",
+ last_seen:"Most recent observation time.",
+ geo:"Cernity-added GeoIP/ASN enrichment, keyed by IP (country, ASN, org). Suricata does not emit this.",
+ intel:"Cernity-added threat-intel enrichment keyed by IP: rdns (reverse DNS), virustotal (reputation), etc.",
+ tenant_id:"Which tenant/sensor scope this finding belongs to.",
+ revision:"Which lifecycle revision of the finding this is (enrichment/timeout re-deliveries bump it).",
+ // Suricata EVE fields
+ event_type:"Suricata EVE record type: flow (bidirectional), netflow (per-direction), tls, dns, quic, http, ssh, anomaly…",
+ community_id:"Cross-tool flow hash (5-tuple) — a pivot to RELATED records for the same flow in other tools, not a unique event identity or proof of exact lineage.",
+ flow_id:"Suricata's internal flow identifier.",
+ app_proto:"Application protocol Suricata/nDPI identified for the flow.",
+ ndpi_evidence:"Cernity structured nDPI classification (plan 008): native risk id/name/tier/score, the derived category (observation/policy/anomaly/exploit/unclassified), severity basis, policy version, and calibrated=false. The native nDPI tier can differ from the Cernity severity \u2014 both are shown; a native score is evidence, not a probability.",
+ ndpi:"nDPI deep-packet-inspection result (proto, category, breed, risk).",
+ ja3:"TLS client fingerprint (JA3) — identifies the client stack, not a person.",
+ ja4:"Newer TLS client fingerprint (JA4).",
+ tls:"TLS handshake metadata (SNI, JA3/JA4, cert subject/issuer, version).",
+ dns:"DNS query/response detail (rrname, rrtype, rcode).",
+ alert:"A Suricata signature-rule match (if any) on this record."
+};
+function fieldGuide(obj){const ks=Object.keys(FIELDS).filter(k=>obj[k]!==undefined);
+ if(!ks.length)return "";
+ return "<dl class=\"gloss\">"+ks.map(k=>"<dt>"+esc(k)+"</dt><dd>"+esc(FIELDS[k])+"</dd>").join("")+"</dl>";}
+
+// A-U3 (KTD-A6): presets are semantic views over the filters — never a benign verdict.
+// Priority is an explicit, disclosed severity threshold (NOT confirmed-threat sources).
+const PRESETS={
+ priority:{sev:'6',cat:'',note:'severity ≥ 6'},
+ all:{sev:'0',cat:'',note:'all retained severities'},
+ observation:{sev:'0',cat:'observation',note:'category=observation, severity ≥ 0'},
+ policy:{sev:'0',cat:'policy',note:'category=policy (hygiene), severity ≥ 0'},
+ unclassified:{sev:'0',cat:'unclassified',note:'category=unclassified (needs classification), severity ≥ 0'}};
+function applyPreset(){const p=PRESETS[$('f-preset').value]||PRESETS.priority;
+ $('f-sev').value=p.sev;                                   // discloses via the visible control
+ const cat=$('f-cat');
+ if(p.cat && ![].some.call(cat.options,o=>o.value===p.cat)){const o=document.createElement('option');o.value=o.textContent=p.cat;cat.appendChild(o);}
+ cat.value=p.cat;
+ status('view: '+p.note);
+ loadFindings();}
+
+// A-U3 (KTD-A4, fixes R10): assertion-first "why this finding". The ndpi_evidence lives inside
+// entities (not a top-level key), so fieldGuide never reached it — render it here, keyed by
+// producer version, with an honest fallback for anything we don't have a renderer for.
+function findEntity(entities,type){try{const a=typeof entities==='string'?JSON.parse(entities):entities;return (a||[]).find(x=>x&&x.type===type)||null;}catch(_){return null;}}
+// U10 (C): a representative entity for the disposition.v1 emit — first ip/hostname/domain entity,
+// else null (the server falls back to an 'asset' keyed by finding_id).
+function _primaryEntity(entities){try{const a=typeof entities==='string'?JSON.parse(entities):(entities||[]);
+  const e=(a||[]).find(x=>x&&(x.type==='ip'||x.type==='hostname'||x.type==='domain')&&x.value);
+  return e?{type:e.type,value:e.value}:null;}catch(_){return null;}}
+function _limitsText(cat){return ({
+ observation:"A feature/heuristic observation. On its own it does not establish malicious activity or a policy violation.",
+ policy:"A protocol-hygiene observation. Not proof of exploitation or of a customer-policy breach.",
+ unclassified:"This risk is not yet classified — unknown, which is NOT the same as benign.",
+ anomaly:"A suspected-threat indicator, not a confirmed compromise or C2.",
+ exploit:"A possible exploit attempt; the outcome is unknown, not confirmed."
+}[cat]||"The derived category is a lead, not a verdict — see the full record for the raw evidence.");}
+function renderNdpiWhy(s,e){
+ const risks=e.risks||[];
+ const claim='<div class="kv"><div>Claim</div><div>Cernity asserts <b>'+esc(e.category||s.category)+'</b> · severity <b>'+esc(s.severity)+'</b> · confidence '+esc(s.confidence)+(e.calibrated===false?' <span class="chip">uncalibrated</span>':'')+(e.confidence_basis?' (basis: '+esc(e.confidence_basis)+')':'')+'</div>'
+   +'<div>Policy</div><div class="mono">'+esc((s.detector_id||'')+' v'+(e.detector_version||'?')+' · '+(e.policy_version||'?')+' · evidence v'+(e.evidence_version||'?'))+'</div></div>';
+ const basis=risks.length?('<div class="note" style="margin:7px 0 3px">Basis — native nDPI signals (evidence, not a probability):</div>'
+   +risks.map(r=>'<div class="kv"><div class="mono">'+esc(r.name||r.rule||'?')+' (id '+esc(r.id)+')</div><div>native tier <b>'+esc(r.native_severity||'?')+'</b>'
+     +(r.score?' · score '+esc(r.score.total!=null?r.score.total:'?')+' ('+esc(r.score.client)+'/'+esc(r.score.server)+') <span class="chip">'+esc(r.score_scope||'unverified')+'</span>':'')
+     +' → Cernity '+esc(r.category||'?')+'/'+esc(r.severity)+'</div></div>').join('')):'';
+ return claim+basis+'<div class="note" style="margin:7px 0 3px">Not established:</div><div>'+esc(_limitsText(e.category||s.category))+'</div>';}
+function whyPanel(s){
+ const ev=findEntity(s.entities,'ndpi_evidence'), key=(s.detector_id||'?')+' v'+(s.detector_version||'?');
+ if(s.detector_id==='ndpi_risk' && String(s.detector_version)==='2.0' && ev && ev.value){return renderNdpiWhy(s,ev.value);}
+ return '<div class="note">No structured "why" renderer for <span class="mono">'+esc(key)+'</span>. The derived category is a lead, not a verdict — see the full record below for the raw evidence.</div>';}
+
+// A-U5 (KTD/§18.2): evidence-status strip — four INDEPENDENT facts, no combined trust score and
+// no green "delivery-verified" badge. Receiver presence means "retrieved from this SIEM", never
+// proof of delivery elsewhere; a capped native risk list reads as partial, never complete.
+function _sourceMethod(det){det=det||'';
+ if(det==='ids_signature')return['signature','a rule matched — not proof of compromise'];
+ if(det==='threat_intel'||det==='slips_intel')return['intel','threat-intel lookup'];
+ if(det.indexOf('slips_ml')===0)return['ML','ML/behavioral (SLIPS)'];
+ if(det.indexOf('slips_')===0)return['SLIPS','SLIPS detector'];
+ if(det==='ndpi_risk')return['nDPI','nDPI deep-packet inspection'];
+ return ['analytic','Cernity analytic'];}
+function evidenceStrip(s,d){
+ const ev=(findEntity(s.entities,'ndpi_evidence')||{}).value||null, sm=_sourceMethod(s.detector_id);
+ let cal='calibration not reported'; if(ev&&ev.calibrated===false)cal='uncalibrated'; else if(ev&&ev.calibrated===true)cal='calibrated';
+ let scope='scope unknown'; if(ev&&Array.isArray(ev.risks))scope=(ev.risks.length>=16)?'partial (capped at 16)':'representative';
+ const chip=(t,title)=>'<span class="chip" title="'+esc(title||'')+'">'+esc(t)+'</span>';
+ return '<div class="evstrip">'
+   +chip('source: '+sm[0], sm[1])
+   +chip(cal, cal==='calibration not reported'?'no calibration flag supplied':'detector confidence calibration state')
+   +chip((d.index?'present in '+d.index:'receiver unknown'), 'retrieved from this SIEM ('+(d.index||'?')+' / '+(d.id||'?')+') — NOT proof of delivery to any other sink')
+   +chip('evidence: '+scope, scope.indexOf('partial')===0?'native risk list capped at 16 — more may exist':'a representative sample of the evidence')
+   +'</div>';}
+function show(t){for(const v of ['overview','findings','suricata','search','detectors','compare','cases']){$('view-'+v).style.display=v===t?'flex':'none';$('tab-'+v).classList.toggle('on',v===t);}
+  if(t==='overview'&&!window._ovload){window._ovload=1;loadOverview();}
+  if(t==='findings'&&!window._fload){window._fload=1;loadFindings();}
+  if(t==='suricata'&&!window._sload){window._sload=1;loadSuricata();}
+  if(t==='cases')loadCases();
+  if(t==='detectors')loadDetectors();}
+function status(m){$('status').textContent=m;}
+
+// A-U1 shared request layer: every fetch goes through here so a failure (ES/SQLite down,
+// bad request, non-JSON body) can never render as success or emptiness. Returns a typed
+// result; callers must switch on .ok. Never assume the body is present or well-formed.
+async function req(url,opts){
+  try{
+    const r=await fetch(url,opts);
+    let d=null; try{d=await r.json();}catch(_){ /* non-JSON / empty body */ }
+    const rid=r.headers.get('x-request-id')||(d&&d.request_id)||'';
+    if(!r.ok){
+      const msg=(d&&(d.error||(d.detail&&('bad request: '+JSON.stringify(d.detail)))))||('HTTP '+r.status);
+      return {ok:false,status:r.status,error:msg,rid,data:d};
+    }
+    if(d&&d.error){return {ok:false,status:r.status,error:d.error,rid,data:d};}  // 200 with an error envelope
+    return {ok:true,status:r.status,data:(d||{}),rid};
+  }catch(e){return {ok:false,status:0,error:String(e),rid:''};}  // network/abort
+}
+function errBox(msg,rid){return '<div class="err">'+esc(msg)+(rid?' <span class="note">(ref '+esc(rid)+')</span>':'')+'</div>';}
+
+// ---- findings ----
+let _findNext='';                                            // A-U3: search_after cursor for the next page
+async function loadFindings(append){
+  if(!append)_findNext='';
+  const p=new URLSearchParams({severity_min:$('f-sev').value,category:$('f-cat').value,detector:$('f-det').value,source:$('f-src').value,since:$('f-since').value,frm:toQ($('f-from').value),to:toQ($('f-to').value),q:$('f-q').value,size:150});
+  if(append&&_findNext)p.set('after',_findNext);
+  status(append?'loading more…':'loading findings…');
+  const res=await req('/api/findings?'+p);
+  if(!res.ok){if(!append)$('f-queue').innerHTML=errBox('Findings query failed — '+res.error,res.rid);$('f-total').textContent='';status('error');return;}
+  const d=res.data;
+  if($('f-cat').options.length<=1&&d.categories)for(const c of d.categories){const o=document.createElement('option');o.value=o.textContent=c;$('f-cat').appendChild(o);}
+  if($('f-det').options.length<=1&&d.detectors)for(const c of d.detectors){const o=document.createElement('option');o.value=o.textContent=c;$('f-det').appendChild(o);}
+  const rel=(d.total_relation==='gte')?'+':'';                // exact vs lower-bound total
+  $('f-total').textContent=(d.total||0)+rel+' findings match';
+  renderQueue('f-queue',d.rows,openFinding,append);
+  _findNext=d.next_after||'';
+  renderLoadMore('f-queue',_findNext);
+  status('ready');
+}
+function renderLoadMore(el,next){
+  const rail=$(el);const old=rail.querySelector('.loadmore');if(old)old.remove();
+  if(!next)return;
+  const wrap=document.createElement('div');wrap.className='loadmore';wrap.style.cssText='padding:10px;text-align:center';
+  const b=document.createElement('button');b.className='btn';b.textContent='Load more';b.addEventListener('click',()=>loadFindings(true));
+  wrap.appendChild(b);rail.appendChild(wrap);
+}
+// A-U1: update just the selected row's triage chips in place — no full reload, so the
+// analyst's scroll position and selection survive a save (RA-05).
+function setRowTriage(fid,st,disp){
+  const row=document.querySelector('.qrow[data-fid="'+(window.CSS&&CSS.escape?CSS.escape(fid):fid)+'"]');
+  if(!row)return;
+  row.querySelectorAll('.chip.st,.chip.vd').forEach(x=>x.remove());
+  const box=row.lastElementChild;
+  if(st&&st!=='new'){const c=document.createElement('span');c.className='chip st';c.textContent=st;box.appendChild(c);}
+  if(disp){const c=document.createElement('span');c.className='chip vd';c.textContent=disp;box.appendChild(c);}
+}
+function renderQueue(el,rows,onclick,append){
+  const rail=$(el);const lm=rail.querySelector('.loadmore');if(lm)lm.remove();  // drop stale Load-more
+  if(!append){if(!rows||!rows.length){rail.innerHTML='<div class="empty">No matches.</div>';return;}rail.innerHTML='';}
+  else if(!rows||!rows.length){return;}
+  for(const r of rows){const div=document.createElement('div');div.className='qrow';div.dataset.fid=r.finding_id;
+    const ents=summarizeEntities(r.entities);const chips=[];
+    if(r.geo)for(const ip in r.geo){if(r.geo[ip].as_org){chips.push('<span class="chip geo">'+esc(r.geo[ip].as_org)+'</span>');break;}}
+    if(r.intel&&r.intel.virustotal)for(const ip in r.intel.virustotal){const v=r.intel.virustotal[ip];chips.push('<span class="chip intel">VT '+v.malicious+'/'+(v.harmless||0)+'</span>');break;}
+    for(const m of (r.mitre||[]).slice(0,2))chips.push('<span class="chip mitre">'+esc(m)+'</span>');
+    if(r.status&&r.status!=='new')chips.push('<span class="chip st">'+esc(r.status)+'</span>');
+    if(r.disposition)chips.push('<span class="chip vd">'+esc(r.disposition)+'</span>');
+    div.innerHTML='<div class="qtop"><span class="sev '+sevClass(r.severity)+'">'+esc(r.severity)+'</span><b>'+esc(r.category)+'</b>'+_catChip(r.category)+'<span class="mono">'+esc(r.detector_id)+'</span><span class="qts">'+fmtTs(r.ts)+'</span></div>'
+      +'<div class="mono">'+esc(ents)+'</div><div>'+chips.join('')+'</div>';
+    div.onclick=()=>{document.querySelectorAll('#'+el+' .qrow').forEach(x=>x.classList.remove('sel'));div.classList.add('sel');onclick(r.finding_id);};
+    $(el).appendChild(div);}
+}
+function summarizeEntities(e){try{const a=typeof e==='string'?JSON.parse(e):e;const s=a.find(x=>x.role==='src'),d=a.find(x=>x.role==='dst');
+  return (s?s.value:'?')+(d?' → '+d.value:'');}catch(_){return typeof e==='string'?e.slice(0,60):'';}}
+async function openFinding(fid,into){into=into||'f-detail';
+  $(into).innerHTML='<div class="empty">Loading…</div>';
+  const res=await req('/api/findings/'+encodeURIComponent(fid));
+  if(!res.ok){$(into).innerHTML=errBox('Could not load finding — '+res.error,res.rid);return;}
+  const d=res.data;const s=d.source||{};const g=s.geo||{},it=s.intel||{};
+  const geoChips=Object.keys(g).map(ip=>'<span class="chip geo">'+esc(ip)+': '+esc(g[ip].country||'')+' ASN '+esc(g[ip].asn||'?')+' '+esc(g[ip].as_org||'')+'</span>').join('');
+  const rdns=it.rdns?Object.keys(it.rdns).map(ip=>'<span class="chip intel">'+esc(ip)+' → '+esc(it.rdns[ip])+'</span>').join(''):'';
+  const vt=it.virustotal?Object.keys(it.virustotal).map(ip=>{const v=it.virustotal[ip];return '<span class="chip intel">VT '+esc(ip)+': '+esc(v.malicious)+' mal / '+esc(v.suspicious||0)+' susp / '+esc(v.harmless||0)+' harmless</span>';}).join(''):'';
+  const t=d.triage||{};
+  // Lifecycle state is not proof of SIEM delivery (RA-04); label it as lifecycle, don't claim "Delivered".
+  const lifecycle = s.state==='FINAL' ? 'Finalized for delivery' : (s.state==='SUPPRESSED' ? 'Suppressed (not sent to analyst plane)' : (s.state||'—'));
+  // A-U8: confidence != severity. Uncalibrated confidence is labelled beside confidence; severity is
+  // an assigned priority/impact scale, not a probability. A digest change since the last assessment warns.
+  const _ev0=(findEntity(s.entities,'ndpi_evidence')||{}).value||null;
+  const _uncal=(_ev0&&_ev0.calibrated===false)?' <span class="chip" title="detector confidence weight, not a calibrated probability">uncalibrated</span>':'';
+  const _newev=(d.assessment&&d.assessment.new_evidence_since_assessment)?'<span class="chip" style="border-color:#5a4b1f;color:#e0c04a" title="evidence changed since your last assessment — reassess before trusting the prior verdict">⚠ new evidence since your last assessment</span> ':'';
+  $(into).innerHTML=
+   '<h2 class="fh">'+esc(s.category)+' '+_catChip(s.category)+' · '+esc(s.detector_id)+' <span class="sev '+sevClass(s.severity)+'" style="vertical-align:middle" title="assigned priority/impact (0–10), not a probability of compromise">'+esc(s.severity)+'</span></h2>'
+   +'<p class="subline">'+_newev+'confidence '+esc(s.confidence)+_uncal+' · severity '+esc(s.severity)+' <span class="note" title="assigned priority/impact (0–10), not a probability">(priority)</span> · state '+esc(s.state)+' · '+esc((s.mitre||[]).join(', '))+' · <span class="mono">'+esc(s.finding_id)+'</span></p>'
+   +evidenceStrip(s,d)
+   +'<div class="actions">'
+     +'<select data-role="status" title="workflow">'+['new','investigating','escalated','closed'].map(x=>'<option'+(t.status===x?' selected':'')+'>'+x+'</option>').join('')+'</select>'
+     +'<select data-role="disp" title="threat assessment in this context">'+[['','— threat —'],['confirmed','Confirmed threat'],['suspicious','Suspicious'],['benign','Benign']].map(v=>'<option value="'+v[0]+'"'+(t.disposition===v[0]?' selected':'')+'>'+esc(v[1])+'</option>').join('')+'</select>'
+     +'<select data-role="assertion" title="did the detector correctly identify what it claimed? (optional)">'+[['','— assertion —'],['supported','Supported'],['unsupported','Unsupported'],['insufficient_evidence','Insufficient evidence']].map(v=>'<option value="'+v[0]+'"'+((t.assertion||'')===v[0]?' selected':'')+'>'+esc(v[1])+'</option>').join('')+'</select>'
+     +'<select data-role="value" title="was this finding useful here? (optional)">'+[['','— value —'],['useful','Useful'],['low_value','Low value']].map(v=>'<option value="'+v[0]+'"'+((t.value_judgment||'')===v[0]?' selected':'')+'>'+esc(v[1])+'</option>').join('')+'</select>'
+     +'<input data-role="owner" placeholder="owner" value="'+esc(t.owner||'')+'" style="width:110px">'
+     +'<button class="btn primary" data-role="save">Save assessment</button>'
+     +'<button class="btn" data-role="related" title="candidate pivot to raw Suricata EVE — not exact lineage">Find related EVE</button>'
+     +'<button class="btn" data-role="compare" title="split-pane compare: finding + candidate EVE">Compare</button>'
+     +'<span class="note" data-role="savemsg"></span></div>'
+   +panel('Why this finding','the assertion, its basis, and its limits', whyPanel(s), true)
+   +panel('Summary','entry point — expand for full fidelity',
+       '<div class="kv"><div>endpoints</div><div class="mono">'+esc(summarizeEntities(s.entities))+'</div>'
+       +'<div>entities</div><div class="mono">'+esc(typeof s.entities==='string'?s.entities:JSON.stringify(s.entities))+'</div>'
+       +(geoChips?'<div>geo</div><div>'+geoChips+'</div>':'')
+       +(rdns?'<div>reverse DNS</div><div>'+rdns+'</div>':'')
+       +(vt?'<div>reputation</div><div>'+vt+'</div>':'')
+       +'<div>SIEM lifecycle</div><div>'+esc(lifecycle)+'</div>'+'</div>',true)
+   +panel('Full Cernity finding record (_source)','complete, verbatim — nothing dropped',
+       '<div class="note" style="margin-bottom:6px">index '+esc(d.index)+' · id '+esc(d.id)+'</div><pre class="json">'+esc(JSON.stringify(s,null,2))+'</pre>')
+   +panel('Field guide','plain-English meaning of the fields in this record', fieldGuide(s))
+   +'<details class="panel" open><summary>Notes <span class="tw">write-back → app DB; finding stays immutable</span></summary><div class="body">'
+     +'<div class="grow"><textarea data-role="ntext" rows="2" placeholder="add analyst note…"></textarea><div><button class="btn" data-role="addnote">Add note</button> <span class="note" data-role="notemsg"></span></div></div>'
+     +'<div data-role="nlist">'+(d.notes||[]).map(n=>'<div class="noteitem"><div class="ts">'+esc(n.ts)+'</div>'+esc(n.text)+'</div>').join('')+'</div></div></details>'
+   +panel('Mapping review','classification review request — local queue, no auto-changes', requestPanel(s,d), s.category==='unclassified');
+  // A-U1: wire handlers per-panel (no inline onclick; each reads controls within THIS container),
+  // so a save in Findings can never read Search's controls (RA-02) and no fid/detector_id is
+  // interpolated into a JS-string sink (RA-03).
+  const box=$(into);
+  // A-U4: carry the write contract — revision/digest/expected-version anchor the judgment to what
+  // was displayed; detector_id/category feed the rollup.
+  const ctx={det:s.detector_id||'',cat:s.category||'',tenant:s.tenant_id||'',revision:d.revision,digest:d.source_digest,version:(d.assessment||{}).version||0,ent:_primaryEntity(s.entities)};
+  box.querySelector('[data-role=save]').addEventListener('click',()=>saveDisp(fid,into,ctx));
+  box.querySelector('[data-role=addnote]').addEventListener('click',()=>addNote(fid,into,ctx));
+  box.querySelector('[data-role=related]').addEventListener('click',()=>relatedEve(s));
+  box.querySelector('[data-role=compare]').addEventListener('click',()=>openCompare(fid,s));
+  box.querySelector('[data-role=reqsubmit]').addEventListener('click',()=>submitMappingRequest(fid,into,s,d));
+}
+// A-U3 (KTD-A7): candidate pivot to raw Suricata EVE — NEVER exact lineage. Prefer Community ID,
+// else dst/src IP; open the Suricata tab with the query VISIBLE and editable. Zero results there
+// mean absent/delayed/filtered/expired evidence, not a disproven finding.
+function _candidateQuery(s){let ents=[];try{ents=typeof s.entities==='string'?JSON.parse(s.entities):(s.entities||[]);}catch(_){}
+  const dst=(ents.find(x=>x&&x.role==='dst')||{}).value,src=(ents.find(x=>x&&x.role==='src')||{}).value;
+  return s.community_id||dst||src||'';}
+function relatedEve(s){
+  const q=_candidateQuery(s);
+  if(!q){status('no pivotable field (community_id / endpoint) on this finding');return;}
+  show('suricata'); $('s-mode').value='all'; $('s-q').value=q; $('s-tz').value=$('f-tz').value;
+  status('related EVE — candidate query "'+q+'" (related records, not exact lineage)'); loadSuricata();
+}
+// A-U6: split-pane Compare. The finding stays fixed on the left; the right pane shows candidate EVE
+// (related records, NOT exact lineage). Native severity scales preserved; zero matches != disproven.
+function openCompare(fid,s){
+  show('compare'); openFinding(fid,'c-left');
+  $('c-q').value=_candidateQuery(s);
+  $('c-banner').textContent='Comparing '+(s.category||'')+' · '+(s.detector_id||'')+' — candidate related EVE (not exact lineage). The finding stays fixed on the left; edit the query to widen/narrow scope.';
+  runCompareEve();
+}
+async function runCompareEve(){
+  const q=$('c-q').value.trim();
+  if(!q){$('c-right').innerHTML='<div class="empty">Enter a candidate query.</div>';$('c-total').textContent='';return;}
+  status('querying related EVE…');
+  const res=await req('/api/suricata?'+new URLSearchParams({mode:'all',q:q,size:150}));
+  if(!res.ok){$('c-right').innerHTML=errBox('EVE query failed — '+res.error,res.rid);$('c-total').textContent='';status('error');return;}
+  const d=res.data, evs=d.events||[];
+  $('c-total').textContent=(d.count||0)+' candidate EVE — related records, not exact lineage';
+  $('c-right').innerHTML=evs.length?renderEvents(evs,'s-tz'):'<div class="empty">No candidate EVE — absent, delayed, filtered, or expired. This does NOT disprove the finding.</div>';
+  status('ready');
+}
+// A-U7: mapping-review request — LOCAL queue, never mutates the finding or any other example.
+function requestPanel(s,d){
+  const reqs=(d.requests||[]).map(r=>'<div class="noteitem"><div class="ts">#'+esc(r.id)+' · '+esc(r.state)+' · '+esc(r.created)+'</div>'+esc(r.explanation||'')+(r.proposed?' <span class="chip">proposes: '+esc(r.proposed)+'</span>':'')+'</div>').join('')||'<div class="note">No requests for this finding.</div>';
+  return '<div class="note" style="margin-bottom:6px">Saved to a LOCAL queue — never changes this or any other finding; analyst evidence for the mapping process, not an auto-relabel.</div>'
+    +'<div class="grow"><input data-role="reqproposed" placeholder="proposed interpretation (recorded as a proposal)" style="width:100%">'
+    +'<textarea data-role="reqexpl" rows="2" placeholder="why does this risk need a classification review? (required)"></textarea>'
+    +'<div><button class="btn" data-role="reqsubmit">Request mapping review</button> <span class="note" data-role="reqmsg"></span></div></div>'
+    +'<div style="margin-top:8px">'+reqs+'</div>';
+}
+async function submitMappingRequest(fid,into,s,d){
+  const box=$(into), expl=box.querySelector('[data-role=reqexpl]').value.trim(), msg=box.querySelector('[data-role=reqmsg]');
+  if(!expl){msg.className='err';msg.textContent='explanation required';return;}
+  const ev=(findEntity(s.entities,'ndpi_evidence')||{}).value||{}, r0=(ev.risks&&ev.risks[0])||{};
+  const btn=box.querySelector('[data-role=reqsubmit]'); btn.disabled=true;
+  const res=await req('/api/mapping_requests',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({tenant_id:s.tenant_id||'',finding_id:fid,revision:d.revision,detector_id:s.detector_id||'',
+      policy_version:ev.policy_version||'',risk_id:r0.id||'',risk_name:r0.name||'',resolution_reason:ev.category||s.category||'',
+      evidence_available:(findEntity(s.entities,'ndpi_evidence')?'ndpi_evidence':'raw'),
+      explanation:expl,proposed:box.querySelector('[data-role=reqproposed]').value.trim()})});
+  btn.disabled=false;
+  if(!res.ok){msg.className='err';msg.textContent='Request failed — '+res.error;return;}
+  msg.className='note';msg.textContent='submitted to local queue (#'+((res.data&&res.data.id)||'?')+')';
+  box.querySelector('[data-role=reqexpl]').value=''; box.querySelector('[data-role=reqproposed]').value='';
+}
+function panel(title,tw,body,open){return '<details class="panel"'+(open?' open':'')+'><summary>'+esc(title)+' <span class="tw">'+esc(tw)+'</span></summary><div class="body">'+body+'</div></details>';}
+async function saveDisp(fid,into,ctx){
+  const box=$(into);
+  const st=box.querySelector('[data-role=status]').value, disp=box.querySelector('[data-role=disp]').value;
+  const asr=box.querySelector('[data-role=assertion]').value, val=box.querySelector('[data-role=value]').value;
+  const owner=box.querySelector('[data-role=owner]').value;
+  const msg=box.querySelector('[data-role=savemsg]'), btn=box.querySelector('[data-role=save]'); btn.disabled=true;
+  const res=await req('/api/findings/'+encodeURIComponent(fid)+'/disposition',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({status:st,disposition:disp,assertion:asr,value_judgment:val,owner:owner,entity:ctx.ent,
+      detector_id:ctx.det,category:ctx.cat,tenant_id:ctx.tenant,revision:ctx.revision,source_digest:ctx.digest,
+      expected_version:ctx.version,idempotency_key:fid+':'+ctx.version+':'+Date.now()})});
+  btn.disabled=false;
+  if(res.status===409){msg.className='err';msg.textContent='This finding changed since you opened it — reload before saving.';status('conflict');return;}  // draft kept
+  if(!res.ok){msg.className='err';msg.textContent='Save failed — '+res.error+(res.rid?' (ref '+res.rid+')':'');status('save failed');return;}  // draft kept: controls unchanged
+  if(res.data&&typeof res.data.version==='number')ctx.version=res.data.version;   // keep version fresh for the next save
+  msg.className='note';msg.textContent='saved';status('assessment saved');
+  setRowTriage(fid,st,disp);  // in-place row update — selection & scroll preserved (RA-05)
+}
+async function addNote(fid,into,ctx){
+  ctx=ctx||{};
+  const box=$(into), ta=box.querySelector('[data-role=ntext]'), text=ta.value.trim();
+  if(!text)return;
+  const msg=box.querySelector('[data-role=notemsg]'), btn=box.querySelector('[data-role=addnote]'); btn.disabled=true;
+  const res=await req('/api/findings/'+encodeURIComponent(fid)+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({text:text,tenant_id:ctx.tenant||'',revision:ctx.revision,source_digest:ctx.digest,idempotency_key:fid+':note:'+Date.now()})});
+  btn.disabled=false;
+  if(!res.ok){msg.className='err';msg.textContent='Note not saved — '+res.error;status('note failed');return;}  // draft kept in textarea
+  const list=box.querySelector('[data-role=nlist]'), item=document.createElement('div'); item.className='noteitem';
+  const ts=document.createElement('div'); ts.className='ts'; ts.textContent=new Date().toISOString().slice(0,19);
+  item.appendChild(ts); item.appendChild(document.createTextNode(text));  // textContent path — inert (RA-03)
+  list.appendChild(item); ta.value=''; msg.className='note'; msg.textContent='added';
+}
+
+let _detRows=[], _detSort={key:'reviewed_threat_mix',dir:1};
+const _DCOLS=[['detector','detector'],['fired','fired'],['reviewed','reviewed'],['unreviewed','unreviewed'],['confirmed','conf'],['suspicious','susp'],['benign','benign'],['reviewed_threat_mix','threat mix%'],['support_rate','support%']];
+async function loadDetectors(){status('aggregating verdicts…');$('d-table').innerHTML='<div class="empty">Aggregating…</div>';
+  const res=await req('/api/detectors');
+  if(!res.ok){$('d-table').innerHTML=errBox('Detector rollup failed — '+res.error,res.rid);$('d-total').textContent='';status('error');return;}
+  const d=res.data;_detRows=d.detectors||[];
+  $('d-total').textContent=_detRows.length+' detectors · '+(d.reviewed||0)+' reviewed';
+  if(!_detRows.length){$('d-table').innerHTML='<div class="empty">No detectors have fired.</div>';status('ready');return;}
+  renderDet();status('ready');}
+function sortDet(k){if(_detSort.key===k){_detSort.dir=-_detSort.dir;}else{_detSort.key=k;_detSort.dir=(k==='detector'?1:-1);}renderDet();}
+function renderDet(){const key=_detSort.key,dir=_detSort.dir;
+  const rows=_detRows.slice().sort((a,b)=>{let x=a[key],y=b[key];
+    if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;   // untriaged signal% always last
+    return (typeof x==='number'?x-y:String(x).localeCompare(String(y)))*dir;});
+  const bar=p=>{if(p==null)return '<span class="note">— unreviewed</span>';
+    const c=p>=50?'#8be0a4':p>=20?'#e0c04a':'#f0a8a3';
+    return '<span class="sigbar"><span style="width:'+p+'%;background:'+c+'"></span></span>'+p+'%';};
+  const arr=k=>_detSort.key===k?(_detSort.dir===1?' ▲':' ▼'):'';
+  $('d-table').innerHTML='<table class="dt"><thead><tr>'
+    +_DCOLS.map(c=>'<th onclick="sortDet(\''+c[0]+'\')" style="cursor:pointer;user-select:none">'+c[1]+arr(c[0])+'</th>').join('')
+    +'</tr></thead><tbody>'
+    +rows.map(r=>'<tr>'+_DCOLS.map(c=>{const k=c[0],v=r[k];
+        if(k==='detector')return '<td class="mono">'+esc(v)+'</td>';
+        if(k==='reviewed_threat_mix'||k==='support_rate')return '<td>'+bar(v)+'</td>';
+        return '<td>'+esc(v==null?'':v)+'</td>';}).join('')+'</tr>').join('')
+    +'</tbody></table>';}
+
+// ---- suricata ----
+async function loadSuricata(){status('querying SIEM…');$('s-list').innerHTML='<div class="empty">Querying suricata-eve-*…</div>';
+  const raw={mode:$('s-mode').value,event_type:$('s-type').value,severity_max:$('s-sev').value,
+    since:$('s-since').value,frm:toQ($('s-from').value,'s-tz'),to:toQ($('s-to').value,'s-tz'),q:$('s-q').value,size:150};
+  const p=new URLSearchParams(Object.entries(raw).filter(([k,v])=>v!=='' && v!=null));
+  try{const r=await fetch('/api/suricata?'+p);const d=await r.json().catch(()=>null);
+    if(!r.ok||!d||d.error||d.detail){const m=(d&&(d.error||(d.detail&&('bad request: '+JSON.stringify(d.detail)))))||('HTTP '+r.status);$('s-list').innerHTML='<div class="err">Suricata query failed — '+esc(m)+'</div>';status('error');return;}
+    if($('s-type').options.length<=1&&d.event_types)for(const t of d.event_types){const o=document.createElement('option');o.value=o.textContent=t;$('s-type').appendChild(o);}
+    $('s-total').textContent=d.count+' events'+(d.note?' — '+esc(d.note):'');
+    const evs=d.events||[];
+    if(!evs.length){$('s-list').innerHTML='<div class="empty">No matching events.</div>';status('ready');return;}
+    $('s-list').innerHTML='<details class="evrow"><summary><span class="chip">field guide</span><span class="note">what these EVE fields mean</span></summary><div style="padding:8px 12px">'+fieldGuide(d.events[0]||{})+'</div></details>'+renderEvents(evs,'s-tz');status('ready');
+  }catch(e){$('s-list').innerHTML='<div class="err">'+esc(e)+'</div>';status('error');}
+}
+// A-U6: reusable EVE row renderer (Suricata tab + Compare right pane), native severity scale preserved.
+function renderEvents(events,tzSel){
+  const sevc=s=>s==1?'sev-hi':s==2?'sev-md':'sev-lo';
+  return (events||[]).map(ev=>{
+    const a=ev.alert||{};
+    const head=a.signature?('<span class="sev '+sevc(a.severity)+'">S'+esc(a.severity)+'</span><b>'+esc(a.signature)+'</b> '):'<span class="chip">'+esc(ev.event_type||'?')+'</span>';
+    const line=[fmtTs(ev.timestamp,tzSel),ev.event_type,(ev.src_ip||'')+(ev.dest_ip?' → '+ev.dest_ip:'')+(ev.dest_port?(':'+ev.dest_port):''),ev.proto,ev.app_proto,a.category].filter(Boolean).join(' · ');
+    return '<details class="evrow"><summary>'+head+'<span class="mono">'+esc(line)+'</span></summary><pre class="json">'+esc(JSON.stringify(ev,null,2))+'</pre><div style="padding:0 12px 10px">'+fieldGuide(ev)+'</div></details>';
+  }).join('');
+}
+
+// ---- search ----
+async function runSearch(){const q=$('q-q').value.trim();if(!q)return;status('searching…');
+  const res=await req('/api/findings?'+new URLSearchParams({q,size:150,severity_min:0}));
+  if(!res.ok){$('q-queue').innerHTML=errBox('Search failed — '+res.error,res.rid);$('q-total').textContent='';status('error');return;}
+  const d=res.data;
+  $('q-total').textContent=(d.total||0)+' findings';renderQueue('q-queue',d.rows,(fid)=>openFinding(fid,'q-detail'));status('ready');}
+
+</script>
+<!-- 012 V2: pinned local ECharts (no CDN) + shared chart adapter, then the Overview view module. -->
+<script src="/static/vendor/echarts-5.5.1.min.js"></script>
+<script src="/static/charts.js?v=012c3"></script>
+<!-- 012 V1: Overview view module (queue-centric). Loads last so req()/esc()/$()/show()/VantageCharts exist. -->
+<script src="/static/overview.js?v=inc2u9"></script>
+</body></html>

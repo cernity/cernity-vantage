@@ -1,0 +1,92 @@
+/* Cernity Vantage — graphite security console (plan 012 V1). Extracted from the monolithic SPA.
+   Tokens + shell + queue-centric Overview. Analyst tabs inherit the token palette below. */
+:root{
+  --bg:#080D14; --rail:#0C1420; --panel:#152438; --panel2:#101c2e; --line:#22344c; --sel:#13233a;
+  --ink:#E7F0FA; --mut:#7d90a8; --acc:#55D8ED; --cyan:#55D8ED; --violet:#A99BFF;
+  --amber:#F6C66C; --amb:#F6C66C; --red:#FF7A85; --grn:#6DDBAD; --green:#6DDBAD;
+  --mono:"SF Mono",ui-monospace,"Cascadia Code",Menlo,monospace;
+}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---- Overview shell: rail + content ---------------------------------------- */
+#view-overview{display:flex;flex-direction:column;flex:1;min-height:0}
+.ovhead{display:flex;align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0a1220,transparent);flex:none;flex-wrap:wrap}
+.ovhead .pill{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:20px;padding:3px 11px;background:var(--panel2)}
+.ovhead .pill b{color:var(--ink);font-weight:600}
+.ovhead .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.ovhead .seg button{padding:5px 11px;font-size:12.5px;color:var(--mut);cursor:pointer;font-family:var(--mono);background:none;border:none}
+.ovhead .seg button.on{background:var(--cyan);color:#04121a;font-weight:600}
+.ovwrap{display:flex;flex:1;min-height:0}
+.ovrail{width:200px;border-right:1px solid var(--line);padding:12px 10px;background:var(--rail);overflow:auto;flex:none}
+.ovrail .r{padding:6px 9px;border-radius:8px;color:var(--mut);font-size:12.5px;margin-bottom:2px;display:flex;align-items:center;gap:8px}
+.ovrail .r.on{background:linear-gradient(90deg,rgba(85,216,237,.14),transparent);color:var(--ink);box-shadow:inset 2px 0 0 var(--cyan)}
+.ovbody{flex:1;overflow:auto;padding:16px 22px 40px;display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* status strip (compact) */
+.ovstatus{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--mut);border-radius:10px;padding:9px 16px;font-size:13px;flex-wrap:wrap}
+.ovstatus.green{border-left-color:var(--green)}.ovstatus.amber{border-left-color:var(--amber)}.ovstatus.red{border-left-color:var(--red)}
+.ovstatus .cov{color:var(--mut)}
+.ovstatus .issue{margin-left:auto;font-size:12px}
+.ovdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.q-fresh,.s-ok{background:var(--green);box-shadow:0 0 8px -1px var(--green)}
+.q-stale,.s-degraded{background:var(--amber)}
+.q-error,.s-down{background:var(--red)}
+.q-unsupported,.q-no_data,.s-unknown{background:#54637a}
+
+/* HERO: queue centerpiece + signal rail */
+.hero{display:grid;grid-template-columns:1fr 296px;gap:14px;align-items:start}
+.queue{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px rgba(85,216,237,.05),0 18px 40px -30px #000}
+.qhead{display:flex;align-items:center;gap:12px;padding:15px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#17273c,transparent);flex-wrap:wrap}
+.qhead h2{font-size:17px;margin:0;font-weight:680}
+.qhead .count{color:var(--mut);font-size:13px}.qhead .count b{color:var(--amber);font-family:var(--mono)}
+.qfilters{margin-left:auto;display:flex;gap:6px}
+.qfilters button{font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:16px;padding:3px 11px;cursor:pointer;background:none}
+.qfilters button.on{background:var(--cyan);color:#04121a;border-color:var(--cyan);font-weight:600}
+/* scoped to .queue so they never leak onto the Findings-tab list rows (which also use .qrow) */
+.queue .qrow{display:grid;grid-template-columns:4px 1fr auto;gap:14px;padding:12px 20px;border-bottom:1px solid #16273e;cursor:pointer}
+.queue .qrow:hover{background:var(--sel)}
+/* the queue severity spine reuses class="sev"; reset the Findings-tab badge rule
+   (index.html .sev: min-width:22px + padding) so it stays a 4px bar in its grid track
+   instead of overflowing into the title. */
+.queue .qrow .sev{min-width:0;width:4px;padding:0;border-radius:3px}
+.queue .qrow h3{margin:0;font-size:14.5px;font-weight:600}
+.queue .qrow .basis{color:var(--mut);font-size:12.5px;margin-top:3px}
+.queue .qrow .meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+.queue .qrow .when{color:var(--mut);font-size:11.5px;font-family:var(--mono);text-align:right;white-space:nowrap}
+.queue .qrow.open{background:#0f1d30;grid-template-columns:4px 1fr;box-shadow:inset 2px 0 0 var(--cyan)}
+.queue .tag{font-size:10.5px;border:1px solid var(--line);border-radius:6px;padding:1px 8px;color:var(--mut);white-space:nowrap}
+.queue .tag.cyan{color:var(--cyan);border-color:#1d4653}.queue .tag.amber{color:var(--amber);border-color:#4a3f22}.queue .tag.ok{color:var(--green);border-color:#1f5a4a}
+.qdetail{margin-top:12px;border-top:1px dashed #24384f;padding-top:12px}
+.qdetail .assert{font-size:13px}.qdetail .lim{font-size:12.5px;color:var(--mut);margin-top:6px}
+.qdetail .ev{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.qdetail .chip{font-size:11px;border:1px solid var(--line);border-radius:7px;padding:2px 9px;color:var(--mut)}
+.qdetail .act{display:flex;gap:8px;margin-top:12px}
+.qempty{padding:30px 20px;color:var(--mut);text-align:center;font-size:13px}
+
+/* signal rail (collapsed live metrics) */
+.signal{display:flex;flex-direction:column;gap:10px}
+.sig{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 14px;position:relative;overflow:hidden}
+.sig .l{color:var(--mut);font-size:11.5px;display:flex;align-items:center;gap:6px}
+.sig .v{font-size:22px;font-weight:650;margin-top:2px}.sig .v small{font-size:12px;color:var(--mut);font-weight:500;font-family:inherit}
+.sig.warn{border-color:#4a3f22}
+.sig .spark{position:absolute;right:0;bottom:0;left:0;height:20px;opacity:.6}
+
+/* supporting operations band */
+.ops-h{color:#4c5c74;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;margin:6px 2px 0}
+.ops{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+.ovcard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.ovcard h2{font-size:14px;margin:0 0 2px;font-weight:600}
+.ovcard .sub{color:var(--mut);font-size:11.5px;margin-bottom:10px}
+.ovbtn{font-size:12.5px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:8px;padding:6px 13px;cursor:pointer;text-decoration:none;display:inline-block}
+.ovbtn.p{background:var(--cyan);color:#04121a;border-color:var(--cyan);font-weight:600}
+
+/* responsive: collapse hero + ops to one column, scoped scroll on narrow */
+@media (max-width:1180px){ .hero{grid-template-columns:1fr} .ops{grid-template-columns:1fr} .ovrail{display:none} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important;animation:none!important} }
+
+/* Findings-tab left rail (#f-queue): keep long category/detector names inside the 340px column —
+   ellipsis instead of overflowing or char-wrapping the row (defensive; the row markup is unchanged). */
+#f-queue .qtop{flex-wrap:wrap;row-gap:2px}
+#f-queue .qtop>b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+#f-queue .qtop .mono{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#f-queue .qrow>.mono{word-break:break-all}   /* the endpoints line may still wrap (full IPs), that's intended */

@@ -1,0 +1,54 @@
+# HELP ndr_findings_total Findings emitted
+# TYPE ndr_findings_total counter
+ndr_findings_total{detector_id="ndpi_risk",tenant="default"} 19510.0
+ndr_findings_total{detector_id="long_connection",tenant="default"} 94.0
+# HELP ndr_findings_created Findings emitted
+# TYPE ndr_findings_created gauge
+ndr_findings_created{detector_id="ndpi_risk",tenant="default"} 1.7903139959111521e+09
+ndr_findings_created{detector_id="long_connection",tenant="default"} 1.7903184198056314e+09
+# HELP ndr_records_total Bus records processed
+# TYPE ndr_records_total counter
+ndr_records_total{event_type="flow"} 135659.0
+ndr_records_total{event_type="netflow"} 222291.0
+ndr_records_total{event_type="dns"} 53667.0
+# HELP ndr_records_created Bus records processed
+# TYPE ndr_records_created gauge
+ndr_records_created{event_type="flow"} 1.790313995910448e+09
+ndr_records_created{event_type="netflow"} 1.7903139959105146e+09
+ndr_records_created{event_type="dns"} 1.7903140153199506e+09
+# HELP ndr_records_dropped_total Records skipped
+# TYPE ndr_records_dropped_total counter
+ndr_records_dropped_total{reason="flush"} 57438.0
+ndr_records_dropped_total{reason="evaluate"} 2894.0
+# HELP ndr_records_dropped_created Records skipped
+# TYPE ndr_records_dropped_created gauge
+ndr_records_dropped_created{reason="flush"} 1.7903139959161143e+09
+ndr_records_dropped_created{reason="evaluate"} 1.790314026574409e+09
+# HELP ndr_config_reloads_total Config snapshots applied
+# TYPE ndr_config_reloads_total counter
+ndr_config_reloads_total 0.0
+# HELP ndr_config_reloads_created Config snapshots applied
+# TYPE ndr_config_reloads_created gauge
+ndr_config_reloads_created 1.79031399535676e+09
+# HELP ndr_evaluate_seconds evaluate() duration
+# TYPE ndr_evaluate_seconds histogram
+ndr_evaluate_seconds_bucket{le="0.005"} 0.0
+ndr_evaluate_seconds_bucket{le="0.01"} 0.0
+ndr_evaluate_seconds_bucket{le="0.025"} 0.0
+ndr_evaluate_seconds_bucket{le="0.05"} 0.0
+ndr_evaluate_seconds_bucket{le="0.075"} 0.0
+ndr_evaluate_seconds_bucket{le="0.1"} 0.0
+ndr_evaluate_seconds_bucket{le="0.25"} 0.0
+ndr_evaluate_seconds_bucket{le="0.5"} 0.0
+ndr_evaluate_seconds_bucket{le="0.75"} 0.0
+ndr_evaluate_seconds_bucket{le="1.0"} 0.0
+ndr_evaluate_seconds_bucket{le="2.5"} 0.0
+ndr_evaluate_seconds_bucket{le="5.0"} 0.0
+ndr_evaluate_seconds_bucket{le="7.5"} 0.0
+ndr_evaluate_seconds_bucket{le="10.0"} 0.0
+ndr_evaluate_seconds_bucket{le="+Inf"} 0.0
+ndr_evaluate_seconds_count 0.0
+ndr_evaluate_seconds_sum 0.0
+# HELP ndr_evaluate_seconds_created evaluate() duration
+# TYPE ndr_evaluate_seconds_created gauge
+ndr_evaluate_seconds_created 1.7903139953567748e+09

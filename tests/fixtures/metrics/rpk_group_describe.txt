@@ -1,0 +1,12 @@
+GROUP                  cernity-findings-forwarder
+COORDINATOR-NODE       0
+COORDINATOR-PARTITION  __consumer_offsets/0
+STATE                  Stable
+BALANCER               range
+MEMBERS                1
+TOTAL-LAG              0
+
+TOPIC                 PARTITION  CURRENT-OFFSET  LOG-START-OFFSET  LOG-END-OFFSET  LAG   MEMBER-ID                                                CLIENT-ID           HOST
+ndr.finding.final.v1  0          743794          700621            743794          0     kafka-python-2.2.3-15d8a4da-33a1-4717-8ca3-b0c03dcbd0ed  kafka-python-2.2.3  172.18.0.26
+ndr.finding.final.v1  1          726176          701401            726176          0     kafka-python-2.2.3-15d8a4da-33a1-4717-8ca3-b0c03dcbd0ed  kafka-python-2.2.3  172.18.0.26
+ndr.finding.final.v1  2          725073          700107            725073          0     kafka-python-2.2.3-15d8a4da-33a1-4717-8ca3-b0c03dcbd0ed  kafka-python-2.2.3  172.18.0.26

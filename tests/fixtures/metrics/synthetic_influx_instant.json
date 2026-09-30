@@ -1,0 +1,1 @@
+{"results":[{"statement_id":0,"series":[{"name":"ndr_findings_total","tags":{"detector_id":"ndpi_risk"},"columns":["time","rate"],"values":[["2026-09-26T00:00:00Z",3.15]]}]}]}
