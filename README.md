@@ -24,3 +24,10 @@ docker run -d --env-file .env -p 8899:8899 -v vantage-data:/data cernity/cernity
 See [docs/metrics-setup.md](docs/metrics-setup.md) for the Overview dashboard (Prometheus or
 InfluxDB backends) and the metrics adapter contract. `.env` is gitignored — never commit real
 hosts or tokens.
+
+## License
+
+Source-available, **not** open source. Cernity Vantage is licensed under
+**[PolyForm Perimeter License 1.0.1](LICENSE)** — use, modify, and self-host it for any purpose
+**except** offering a product that competes with Cernity. Same license as
+[cernityndr](https://github.com/cernity/cernityndr).
